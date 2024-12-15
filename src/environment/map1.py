@@ -12,7 +12,7 @@ class Map:
         self.width = width
         self.height = height
         self.grid = [[FREE for _ in range(width)] for _ in range(height)]
-        self.cell_size = 64  # Größe der Zellen, angepasst an die Originalgröße des Roboters
+        self.cell_size = 128  # Größe der Zellen, angepasst an die Originalgröße des Roboters
         self.screen_width = self.width * self.cell_size  # Bildschirmbreite an die Zellen anpassen
         self.screen_height = self.height * self.cell_size  # Bildschirmhöhe an die Zellen anpassen
 
@@ -24,8 +24,9 @@ class Map:
             if self.grid[y][x] == FREE:
                 self.grid[y][x] = OBSTACLE
 
-    def place_robot(self, x, y):
+    def place_robot(self, x=0, y=0):
         """Platziert den Roboter auf der Karte."""
+        # Hier startet der Roboter nun direkt in der oberen linken Ecke
         if self.grid[y][x] == FREE:
             self.grid[y][x] = ROBOT
             return x, y  # Gibt die Position des Roboters zurück, um ihn in Pygame anzuzeigen
@@ -41,6 +42,7 @@ class Map:
                     break
             if not placed:
                 raise ValueError("Keine freie Position für den Roboter gefunden!")
+
 
     def place_goal(self, x, y):
         """Platziert das Ziel auf der Karte."""
@@ -78,3 +80,9 @@ class Map:
                 # Roboter zeichnen
                 elif self.grid[y][x] == ROBOT:
                     pygame.draw.rect(surface, (255, 0, 0), (cell_x, cell_y, self.cell_size, self.cell_size))
+
+        # Netzlinien zeichnen
+        for x in range(self.width + 1):
+            pygame.draw.line(surface, (200, 200, 200), (x * self.cell_size, 0), (x * self.cell_size, self.screen_height))
+        for y in range(self.height + 1):
+            pygame.draw.line(surface, (200, 200, 200), (0, y * self.cell_size), (self.screen_width, y * self.cell_size))

@@ -30,19 +30,31 @@ robot = Robot(
     speed=1  # Geschwindigkeit des Roboters anpassen (z.B. 1 Pixel pro Frame)
 )
 
-# Pygame-Fenster initialisieren
-screen = pygame.display.set_mode((game_map.screen_width, game_map.screen_height))  # Größeres Fenster entsprechend der Karte
-pygame.display.set_caption('Robot Map')
+# Definiere die endgültige kleinere Größe des Fensters
+scaled_window_width = 900  # Neue Fensterbreite
+scaled_window_height = 900  # Neue Fensterhöhe
+
+# Initialisiere das Pygame Fenster mit der kleineren Größe
+screen = pygame.display.set_mode((scaled_window_width, scaled_window_height))
+
+# Erstelle eine größere Oberfläche, auf der die gesamte Karte, der Roboter usw. gezeichnet werden
+full_surface_width = game_map.screen_width  # Die ursprüngliche größere Karte
+full_surface_height = game_map.screen_height
+full_surface = pygame.Surface((full_surface_width, full_surface_height))
+
+# Platziere den Roboter auf der Karte (diese Zeile sorgt dafür, dass er auf (0, 0) platziert wird)
+game_map.place_robot(robot_x, robot_y)
 
 # Spiel Schleife
 running = True
 while running:
-    screen.fill((255, 255, 255))  # Hintergrund auf weiß setzen
-
-    # Zeichne die Karte
-    game_map.draw_map(screen)
-
-    # Überprüfe auf Tasteneingaben
+    # Zeichne den Hintergrund der gesamten Karte auf der vollen Oberfläche
+    full_surface.fill((255, 255, 255))  # Weißer Hintergrund für die gesamte Fläche
+    
+    # Zeichne die Karte auf die große Oberfläche
+    game_map.draw_map(full_surface)
+    
+    # Bewege den Roboter entsprechend den Tasten
     keys = pygame.key.get_pressed()
     if keys[pygame.K_DOWN]:
         robot.move('down')
@@ -54,14 +66,21 @@ while running:
         robot.move('right')
     else:
         robot.move('idle')
+    
+    # Zeichne den Roboter auf die große Oberfläche
+    robot.display(full_surface)
 
-    # Roboter anzeigen
-    robot.display(screen)
+    # Skaliere die gesamte große Oberfläche auf das kleinere Fenster
+    scaled_surface = pygame.transform.scale(full_surface, (scaled_window_width, scaled_window_height))
+    
+    # Zeige das skalierte Bild im Fenster
+    screen.fill((0, 0, 0))  # Füll den Bildschirm mit einem schwarzen Hintergrund
+    screen.blit(scaled_surface, (0, 0))  # Das skalierte Bild wird auf dem Bildschirm angezeigt
 
     # Aktualisiere den Bildschirm
     pygame.display.flip()
 
-    # Beende das Spiel, wenn das Fenster geschlossen wird
+    # Überprüfe, ob das Spiel geschlossen wurde
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False

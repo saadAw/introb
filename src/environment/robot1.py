@@ -1,13 +1,16 @@
 import pygame
 
-class Robot:
-    def __init__(self, x, y, idle_path, walk_paths, speed=1, cooldown=50):
-        self.x = x
-        self.y = y
-        self.speed = speed
-        self.cooldown = cooldown
-        self.last_move_time = pygame.time.get_ticks()  # Zeit der letzten Bewegung
-        self.frame = 0  # Animations-Frame-Index
+class Robot:  
+    def __init__(self, x, y, idle_path, walk_paths, speed=1, cooldown=50):  
+        self.x = x  
+        self.y = y  
+        self.speed = speed  
+        self.cooldown = cooldown  
+        self.last_move_time = pygame.time.get_ticks()  
+        self.frame = 0  
+        # Füge Offset-Werte hinzu  
+        self.offset_x = -256  # -3 * 128  
+        self.offset_y = -256  # -3 * 128
 
         # Lade die Idle- und Geh-Bilder
         self.idle_images = self.load_idle_images(idle_path)
@@ -68,6 +71,11 @@ class Robot:
             # Aktualisiere die Zeit der letzten Bewegung
             self.last_move_time = current_time
 
-    def display(self, surface):
-        """Zeigt das aktuelle Bild des Roboters auf dem Bildschirm an."""
-        surface.blit(self.current_image, (self.x * 128, self.y * 128))  # Position auf die Zellen abgestimmt
+    def display(self, surface):  
+        """Zeigt das aktuelle Bild des Roboters auf dem Bildschirm an."""  
+        position_x = self.x * 128 + self.offset_x  # Füge Offset hinzu  
+        position_y = self.y * 128 + self.offset_y  # Füge Offset hinzu  
+
+        surface.blit(self.current_image, (position_x, position_y))
+
+
