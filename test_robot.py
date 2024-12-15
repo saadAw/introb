@@ -1,5 +1,7 @@
-import pygame
-from src.environment import Map, Robot
+# test_robot.py  
+import pygame  
+from src.environment import Map, Robot, Game
+from src.environment.constants import GameState, FPS, COLORS
 
 # Initialisiere Pygame
 pygame.init()
@@ -45,48 +47,71 @@ full_surface = pygame.Surface((full_surface_width, full_surface_height))
 # Platziere den Roboter auf der Karte (diese Zeile sorgt dafür, dass er auf (0, 0) platziert wird)
 game_map.place_robot(robot_x, robot_y)
 
+# Erstelle das Spiel  
+game = Game()  
+
+# Spiel Schleife  
+# test_robot.py - Hauptschleife aktualisieren
 # Spiel Schleife
 running = True
 while running:
-    # Zeichne den Hintergrund der gesamten Karte auf der vollen Oberfläche
-    full_surface.fill((255, 255, 255))  # Weißer Hintergrund für die gesamte Fläche
-    
-    # Zeichne die Karte auf die große Oberfläche
-    game_map.draw_map(full_surface)
-    
-    # Bewege den Roboter entsprechend den Tasten
-    keys = pygame.key.get_pressed()
-    if keys[pygame.K_DOWN]:
-        robot.move('down')
-    elif keys[pygame.K_UP]:
-        robot.move('up')
-    elif keys[pygame.K_LEFT]:
-        robot.move('left')
-    elif keys[pygame.K_RIGHT]:
-        robot.move('right')
-    else:
-        robot.move('idle')
-    
-    # Zeichne den Roboter auf die große Oberfläche
-    robot.display(full_surface)
-
-    # Skaliere die gesamte große Oberfläche auf das kleinere Fenster
-    scaled_surface = pygame.transform.scale(full_surface, (scaled_window_width, scaled_window_height))
-    
-    # Zeige das skalierte Bild im Fenster
-    screen.fill((0, 0, 0))  # Füll den Bildschirm mit einem schwarzen Hintergrund
-    screen.blit(scaled_surface, (0, 0))  # Das skalierte Bild wird auf dem Bildschirm angezeigt
-
-    # Aktualisiere den Bildschirm
-    pygame.display.flip()
-
-    # Überprüfe, ob das Spiel geschlossen wurde
+    # Event handling
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_r and game.state != GameState.PLAYING:
+                game.reset()
+                robot.x, robot.y = game_map.place_robot(0, 0)
 
-    # Setze die Bildrate
-    pygame.time.Clock().tick(30)
+    # Update Spielzustand
+    if game.state == GameState.PLAYING:
+        game.update()
 
-# Beende Pygame
-pygame.quit()
+        # Bewegungslogik
+        keys = pygame.key.get_pressed()
+        old_pos = (robot.x, robot.y)
+
+        if keys[pygame.K_DOWN]:
+            robot.move('down', game_map)
+        elif keys[pygame.K_UP]:
+            robot.move('up', game_map)
+        elif keys[pygame.K_LEFT]:
+            robot.move('left', game_map)
+        elif keys[pygame.K_RIGHT]:
+            robot.move('right', game_map)
+        else:
+            robot.move('idle', game_map)
+
+        # Prüfe Gewinnbedingung
+        if game_map.goal_pos:
+            game.check_win_condition((robot.x, robot.y), game_map.goal_pos)
+
+        elif event.type == pygame.KEYDOWN:  
+            if event.key == pygame.K_r and game.state != GameState.PLAYING:  
+                # Vollständiger Reset  
+                game.reset()  
+                # Map zurücksetzen  
+                game_map = Map(10, 10)  
+                game_map.add_obstacles(20)  
+                game_map.place_goal(8, 8)  
+                # Roboter zurücksetzen  
+                robot.x, robot.y = 0, 0  
+                game_map.place_robot(robot.x, robot.y)
+
+    # Zeichnen
+    full_surface.fill(COLORS['WHITE'])
+    game_map.draw_map(full_surface)
+    robot.display(full_surface)
+
+    # UI zeichnen
+    game.draw_ui(full_surface)
+
+    # Skalierung und Anzeige
+    scaled_surface = pygame.transform.scale(full_surface, (scaled_window_width, scaled_window_height))
+    screen.fill(COLORS['BLACK'])
+    screen.blit(scaled_surface, (0, 0))
+    pygame.display.flip()
+
+    # Framerate
+    pygame.time.Clock().tick(FPS)

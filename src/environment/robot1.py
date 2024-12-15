@@ -1,4 +1,5 @@
 import pygame
+from src.environment.constants import COLORS
 
 class Robot:  
     def __init__(self, x, y, idle_path, walk_paths, speed=1, cooldown=50):  
@@ -46,29 +47,32 @@ class Robot:
                 break
         return images
 
-    def move(self, direction):
-        """Bewegt den Roboter in die angegebene Richtung oder wechselt den Animationszustand."""
-        current_time = pygame.time.get_ticks()
-        if current_time - self.last_move_time >= self.cooldown:
-            if direction == 'down':
-                self.y += 1
-                self.current_image = self.walk_images['down'][self.frame]
-            elif direction == 'up':
-                self.y -= 1
-                self.current_image = self.walk_images['up'][self.frame]
-            elif direction == 'left':
-                self.x -= 1
-                self.current_image = self.walk_images['left'][self.frame]
-            elif direction == 'right':
-                self.x += 1
-                self.current_image = self.walk_images['right'][self.frame]
-            elif direction == 'idle':
-                self.current_image = self.idle_images[self.frame]
+    def move(self, direction, game_map):  
+        current_time = pygame.time.get_ticks()  
+        if current_time - self.last_move_time >= self.cooldown:  
+            new_x, new_y = self.x, self.y  
 
-            # Animation-Frame erhöhen
-            self.frame = (self.frame + 1) % len(self.walk_images['down'])
+            if direction == 'down':  
+                new_y += 1  
+                self.current_image = self.walk_images['down'][self.frame]  
+            elif direction == 'up':  
+                new_y -= 1  
+                self.current_image = self.walk_images['up'][self.frame]  
+            elif direction == 'left':  
+                new_x -= 1  
+                self.current_image = self.walk_images['left'][self.frame]  
+            elif direction == 'right':  
+                new_x += 1  
+                self.current_image = self.walk_images['right'][self.frame]  
+            elif direction == 'idle':  
+                self.current_image = self.idle_images[self.frame]  
 
-            # Aktualisiere die Zeit der letzten Bewegung
+            if direction != 'idle' and game_map.is_valid_move(new_x, new_y):  
+                self.x = new_x  # Hier war der Fehler (self.x, new_y = new_x, new_y)  
+                self.y = new_y  # Separate Zuweisungen  
+                game_map.place_robot(self.x, self.y)  
+
+            self.frame = (self.frame + 1) % len(self.walk_images['down'])  
             self.last_move_time = current_time
 
     def display(self, surface):  
