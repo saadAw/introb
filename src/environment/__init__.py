@@ -1,1 +1,2 @@
-from .map1 import Map, Robot
+from .map1 import Map
+from .robot1 import Robot
