@@ -17,16 +17,18 @@ class Game:
                 self.state = GameState.LOSE
 
     def check_win_condition(self, robot_pos, goal_pos):
+        """Überprüft, ob der Roboter das Ziel erreicht hat."""
         if robot_pos == goal_pos:
             self.state = GameState.WIN
             self.score += max(self.time_remaining // FPS, 0)  # Bonus für übrige Zeit
+            # Nicht das Spiel beenden, nur den Zustand ändern
 
     def reset(self):
         self.state = GameState.PLAYING
         self.time_remaining = TIME_LIMIT * FPS
         self.score = 0
 
-    # In game.py
+    
     def draw_ui(self, surface):
         # Hintergrund für UI
         padding = 5

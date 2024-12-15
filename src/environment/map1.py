@@ -22,42 +22,45 @@ class Map:
                 self.grid[y][x] = MapSymbols.OBSTACLE  # Hier geändert
 
     def place_robot(self, x=0, y=0):  
-        if self.robot_pos:  # Alte Position löschen  
+        """Platziert den Roboter auf der Karte."""  
+        if self.robot_pos:  
             old_x, old_y = self.robot_pos  
             self.grid[old_y][old_x] = MapSymbols.FREE  
 
-        if self.grid[y][x] == MapSymbols.FREE:  
+        if self.is_valid_move(x, y):  
             self.grid[y][x] = MapSymbols.ROBOT  
             self.robot_pos = (x, y)  
-            return x, y
-        else:
-            placed = False
-            for i in range(self.height):
-                for j in range(self.width):
-                    if self.grid[i][j] == FREE:
-                        self.grid[i][j] = ROBOT
-                        placed = True
-                        return j, i  # Die x, y Koordinaten umkehren, da j die horizontale und i die vertikale Position ist
-                if placed:
-                    break
-            if not placed:
+            return x, y  
+        else:  
+            placed = False  
+            for i in range(self.height):  
+                for j in range(self.width):  
+                    if self.grid[i][j] == MapSymbols.FREE:  # Hier geändert  
+                        self.grid[i][j] = MapSymbols.ROBOT  
+                        placed = True  
+                        return j, i  
+                if placed:  
+                    break  
+            if not placed:  
                 raise ValueError("Keine freie Position für den Roboter gefunden!")
 
 
-    def place_goal(self, x, y):  
-        if self.goal_pos:  # Alte Position löschen  
-            old_x, old_y = self.goal_pos  
-            self.grid[old_y][old_x] = MapSymbols.FREE  
+    def place_goal(self, x, y):
+        """Platziert das Ziel auf der Karte."""
+        if self.goal_pos:  # Alte Position löschen
+            old_x, old_y = self.goal_pos
+            self.grid[old_y][old_x] = MapSymbols.FREE
 
-        if self.grid[y][x] == MapSymbols.FREE and not (x == 0 and y == 0):  
-            self.grid[y][x] = MapSymbols.GOAL  
+        if self.grid[y][x] == MapSymbols.FREE and not (x == 0 and y == 0):
+            self.grid[y][x] = MapSymbols.GOAL
             self.goal_pos = (x, y)
         else:
             found = False
             for i in range(self.height - 1, self.height // 2, -1):
                 for j in range(self.width - 1, self.width // 2, -1):
-                    if self.grid[i][j] == FREE and not (i == 0 and j == 0):
-                        self.grid[i][j] = GOAL
+                    if self.grid[i][j] == MapSymbols.FREE and not (i == 0 and j == 0):
+                        self.grid[i][j] = MapSymbols.GOAL
+                        self.goal_pos = (j, i)
                         found = True
                         break
                 if found:

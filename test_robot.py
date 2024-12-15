@@ -51,42 +51,12 @@ game_map.place_robot(robot_x, robot_y)
 game = Game()  
 
 # Spiel Schleife  
-# test_robot.py - Hauptschleife aktualisieren
-# Spiel Schleife
-running = True
-while running:
-    # Event handling
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_r and game.state != GameState.PLAYING:
-                game.reset()
-                robot.x, robot.y = game_map.place_robot(0, 0)
-
-    # Update Spielzustand
-    if game.state == GameState.PLAYING:
-        game.update()
-
-        # Bewegungslogik
-        keys = pygame.key.get_pressed()
-        old_pos = (robot.x, robot.y)
-
-        if keys[pygame.K_DOWN]:
-            robot.move('down', game_map)
-        elif keys[pygame.K_UP]:
-            robot.move('up', game_map)
-        elif keys[pygame.K_LEFT]:
-            robot.move('left', game_map)
-        elif keys[pygame.K_RIGHT]:
-            robot.move('right', game_map)
-        else:
-            robot.move('idle', game_map)
-
-        # Prüfe Gewinnbedingung
-        if game_map.goal_pos:
-            game.check_win_condition((robot.x, robot.y), game_map.goal_pos)
-
+running = True  
+while running:  
+    # Event handling  
+    for event in pygame.event.get():  
+        if event.type == pygame.QUIT:  
+            running = False  
         elif event.type == pygame.KEYDOWN:  
             if event.key == pygame.K_r and game.state != GameState.PLAYING:  
                 # Vollständiger Reset  
@@ -97,21 +67,42 @@ while running:
                 game_map.place_goal(8, 8)  
                 # Roboter zurücksetzen  
                 robot.x, robot.y = 0, 0  
-                game_map.place_robot(robot.x, robot.y)
+                game_map.place_robot(robot.x, robot.y)  
 
-    # Zeichnen
-    full_surface.fill(COLORS['WHITE'])
-    game_map.draw_map(full_surface)
-    robot.display(full_surface)
+    # Update Spielzustand  
+    if game.state == GameState.PLAYING:  
+        game.update()  
 
-    # UI zeichnen
-    game.draw_ui(full_surface)
+        # Bewegungslogik  
+        keys = pygame.key.get_pressed()  
+        if keys[pygame.K_DOWN]:  
+            robot.move('down', game_map)  
+        elif keys[pygame.K_UP]:  
+            robot.move('up', game_map)  
+        elif keys[pygame.K_LEFT]:  
+            robot.move('left', game_map)  
+        elif keys[pygame.K_RIGHT]:  
+            robot.move('right', game_map)  
+        else:  
+            robot.move('idle', game_map)  
 
-    # Skalierung und Anzeige
-    scaled_surface = pygame.transform.scale(full_surface, (scaled_window_width, scaled_window_height))
-    screen.fill(COLORS['BLACK'])
-    screen.blit(scaled_surface, (0, 0))
-    pygame.display.flip()
+        # Prüfe Gewinnbedingung  
+        if game_map.goal_pos:  
+            game.check_win_condition((robot.x, robot.y), game_map.goal_pos)  
 
-    # Framerate
+    # Zeichnen  
+    full_surface.fill(COLORS['WHITE'])  
+    game_map.draw_map(full_surface)  
+    robot.display(full_surface)  
+
+    # UI zeichnen  
+    game.draw_ui(full_surface)  
+
+    # Skalierung und Anzeige  
+    scaled_surface = pygame.transform.scale(full_surface, (scaled_window_width, scaled_window_height))  
+    screen.fill(COLORS['BLACK'])  
+    screen.blit(scaled_surface, (0, 0))  
+    pygame.display.flip()  
+
+    # Framerate  
     pygame.time.Clock().tick(FPS)
