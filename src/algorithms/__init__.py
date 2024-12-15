@@ -1,1 +1,0 @@
-# Initialisierung des algorithms-Ordners

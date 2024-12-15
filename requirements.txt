@@ -1,4 +1,2 @@
-# Projektabhängigkeiten
-
-pygamep
+pygame
 numpy
