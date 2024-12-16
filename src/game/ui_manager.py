@@ -53,15 +53,16 @@ class UIManager:
         current_y = self._draw_section_header("Controls", surface, current_y)
         controls = [
             "1: Manual Mode",
-            "2: Dijkstra Algorithm",
-            "3: A* Algorithm (Soon)",
-            "4: DQN (Soon)",
-            "5: PPO (Soon)",
+            "2: A* Algorithm",
+            "3: Dijkstra Algorithm",
+            "4: Q-Learning",
+            "5: Deep Q-Learning",
             "",
             "Arrow Keys: Move",
             "R: Reset Game",
             "ESC: Quit"
         ]
+
         
         for control in controls:
             if control:  # If not empty string

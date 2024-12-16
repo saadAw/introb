@@ -5,6 +5,7 @@ from enum import Enum
 from src.environment.map import Map
 from src.environment.robot import Robot
 from src.game.game_logic import GameLogic
+from src.game.ui_manager import UIManager
 from src.config.constants import (
     GameState, 
     FPS, 
@@ -13,20 +14,17 @@ from src.config.constants import (
     calculate_dimensions
 )
 from src.algorithms.pathfinding.dijkstra import DijkstraPathfinder
-from src.game.ui_manager import UIManager
-# Import other algorithms as they're implemented
+from src.algorithms.reinforcement.deep_q_learning import DQNAgent
 # from src.pathfinding.astar import AStarPathfinder
-# from src.pathfinding.reinforcement import DQNAgent, PPOAgent
 
 class AlgorithmType(Enum):
     """Enum for different pathfinding algorithms"""
     MANUAL = "Manual Control"
-    DIJKSTRA = "Dijkstra"
-    ASTAR = "A*"
+    ASTAR = "A* Algorithm"
+    DIJKSTRA = "Dijkstra Algorithm"
     QL = "Q-Learning"
-    DQN = "Deep Q-Network"
+    DQN = "Deep Q-Learning"
     
-
 class GameRunner:
     """Main game runner class that handles game initialization and main loop"""
     def __init__(self):
@@ -145,24 +143,24 @@ class GameRunner:
                     elif event.key == pygame.K_1:
                         self.current_algorithm = AlgorithmType.MANUAL
                     elif event.key == pygame.K_2:
-                        self.current_algorithm = AlgorithmType.DIJKSTRA
-                        self.current_pathfinder = self.pathfinders[AlgorithmType.DIJKSTRA]()
-                    elif event.key == pygame.K_3:
                         if AlgorithmType.ASTAR in self.pathfinders:
                             self.current_algorithm = AlgorithmType.ASTAR
                             self.current_pathfinder = self.pathfinders[AlgorithmType.ASTAR]()
+                    elif event.key == pygame.K_3:
+                        self.current_algorithm = AlgorithmType.DIJKSTRA
+                        self.current_pathfinder = self.pathfinders[AlgorithmType.DIJKSTRA]()
                     elif event.key == pygame.K_4:
+                        if AlgorithmType.QL in self.pathfinders:
+                            self.current_algorithm = AlgorithmType.QL
+                            self.current_pathfinder = self.pathfinders[AlgorithmType.QL]()
+                    elif event.key == pygame.K_5:
                         if AlgorithmType.DQN in self.pathfinders:
                             self.current_algorithm = AlgorithmType.DQN
                             self.current_pathfinder = self.pathfinders[AlgorithmType.DQN]()
-                    elif event.key == pygame.K_5:
-                        if AlgorithmType.PPO in self.pathfinders:
-                            self.current_algorithm = AlgorithmType.PPO
-                            self.current_pathfinder = self.pathfinders[AlgorithmType.PPO]()
         except Exception as e:
             print(f"Error handling events: {e}")
             self.running = False
-
+            
     def handle_input(self):
         """Handle input based on current algorithm"""
         try:
@@ -266,7 +264,7 @@ class GameRunner:
                     # Add other algorithms as they're implemented
                     # AlgorithmType.ASTAR: lambda: AStarPathfinder(self.game_map),
                     # AlgorithmType.QL: lambda: QLAgent(self.game_map),
-                    # AlgorithmType.DQN: lambda: DQNAgent(self.game_map),
+                    AlgorithmType.DQN: lambda: DQNAgent(self.game_map),
                 }
             except Exception as e:
                 print(f"Error setting up algorithms: {e}")

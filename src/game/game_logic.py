@@ -38,16 +38,20 @@ class GameLogic:
         """Calculates reward for an action"""
         self.moves_made += 1
         
+        # Check if game is over
         if new_pos == goal_pos:
             efficiency_bonus = max(0, self.optimal_path_length - self.moves_made)
-            return 100 + efficiency_bonus * 10  # Bonus for efficient solutions
-
+            return 100 + efficiency_bonus * 10  # Large positive reward for reaching goal
+        elif self.time_remaining <= 0:
+            return -100  # Large negative reward for running out of time
+            
+        # Calculate distance-based reward
         old_distance = abs(old_pos[0] - goal_pos[0]) + abs(old_pos[1] - goal_pos[1])
         new_distance = abs(new_pos[0] - goal_pos[0]) + abs(new_pos[1] - goal_pos[1])
-
+        
         if new_distance < old_distance:
             return 1  # Small positive reward for moving closer
         elif new_distance > old_distance:
             return -1  # Small negative reward for moving away
-
-        return -0.1  # Minimal negative reward for time/energy usage
+        
+        return -0.1  # Tiny negative reward for each step to encourage efficiency

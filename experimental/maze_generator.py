@@ -26,6 +26,7 @@ class Maze:
         self.clock = pygame.time.Clock()
         self.slow_mode = False
         self.running = True
+        self.path_density = 0.8
 
         # initialize an array of walls filled with ones, data "not visited" + if exists for 2 walls (down and right) per cell.
         self.wall_size = np.array([size_y, size_x], dtype=np.int16)
@@ -40,126 +41,164 @@ class Maze:
         # initialize an array of block data - each passage (0) and wall (1) is a block
         self.block_size = np.array([size_y * 2 + 1, size_x * 2 + 1], dtype=np.int16)
         self.blocks = np.ones((self.block_size[0], self.block_size[1]), dtype=np.byte)
+        
+                
+    def set_path_density(self, density):
+        self.path_density = max(0.0, min(1.0, density))
+
+    def should_remove_wall(self, cell, direction):
+        """Check if removing a wall would create a better maze structure"""
+        y, x = cell
+        if direction == 1:  # down wall
+            next_cell = (y + 1, x)
+        else:  # right wall
+            next_cell = (y, x + 1)
+            
+        current_connections = self.count_connections(cell)
+        next_connections = self.count_connections(next_cell)
+        
+        # Allow more connections while preventing excessive openness
+        if current_connections >= 4 or next_connections >= 4:
+            return False
+            
+        # Higher base probability for wall removal
+        base_prob = min(1.0, self.path_density * 1.8)
+        
+        # Adjusted probability based on existing connections
+        if current_connections + next_connections >= 5:
+            return random.random() < 0.3
+        elif current_connections + next_connections >= 3:
+            return random.random() < base_prob * 0.8
+        else:
+            return random.random() < base_prob
+    
+    def count_connections(self, cell):
+        """Count how many connections a cell has"""
+        y, x = cell
+        count = 0
+        # Check down wall
+        if y < self.wall_size[0] and self.walls[y, x, 1] == 0:
+            count += 1
+        # Check up wall
+        if y > 1 and self.walls[y-1, x, 1] == 0:
+            count += 1
+        # Check right wall
+        if x < self.wall_size[1] and self.walls[y, x, 2] == 0:
+            count += 1
+        # Check left wall
+        if x > 1 and self.walls[y, x-1, 2] == 0:
+            count += 1
+        return count
 
     def gen_maze_walls(self, corridor_len=999):
-
-        # Generate a maze.
-        # This will start with a random cell and create a corridor until corridor length >= corridor_len or it cannot continue the current corridor.
-        # Then it will continue from a random point within the current maze (ie. visited cells), creating a junction, until no valid starting points exist.
-        # Setting a small corridor maximum length (corridor_len) will cause more branching / junctions.
-        # Returns maze walls data - a NumPy array size (y, x, 2) with 0 or 1 for down and right cell walls.
-
-        # set a random starting cell and mark it as "visited"
-        cell = np.array([random.randrange(2, self.wall_size[0]), random.randrange(2, self.wall_size[1])], dtype=np.int16)
+        cell = np.array([random.randrange(2, self.wall_size[0]), 
+                        random.randrange(2, self.wall_size[1])], dtype=np.int16)
         self.walls[cell[0], cell[1], 0] = 0
 
-        # a simple definition of the four neighboring cells relative to current cell
-        up    = np.array([-1,  0], dtype=np.int16)
-        down  = np.array([ 1,  0], dtype=np.int16)
-        left  = np.array([ 0, -1], dtype=np.int16)
-        right = np.array([ 0,  1], dtype=np.int16)
+        directions = [
+            np.array([-1, 0], dtype=np.int16),  # up
+            np.array([1, 0], dtype=np.int16),   # down
+            np.array([0, -1], dtype=np.int16),  # left
+            np.array([0, 1], dtype=np.int16)    # right
+        ]
 
-        # preset some variables
         need_cell_range = False
         round_nr = 0
         corridor_start = 0
         if corridor_len <= 4:
-            corridor_len = 5  # even this is too small usually
+            corridor_len = 5
 
         while np.size(cell) > 0 and self.running:
-
             round_nr += 1
-            # get the four neighbors for current cell (cell may be an array of cells)
-            cell_neighbors = np.vstack((cell + up, cell + left, cell + down, cell + right))
-            # valid neighbors are the ones not yet visited
-            valid_neighbors = cell_neighbors[self.walls[cell_neighbors[:, 0], cell_neighbors[:, 1], 0] == 1]
+            cell_neighbors = np.vstack([cell + d for d in directions])
+            
+            valid_neighbors = cell_neighbors[
+                (self.walls[cell_neighbors[:, 0], cell_neighbors[:, 1], 0] >= 0) &
+                (self.walls[cell_neighbors[:, 0], cell_neighbors[:, 1], 0] <= 1)
+            ]
 
             if np.size(valid_neighbors) > 0:
-                # there is at least one valid neighbor, pick one of them (at random)
-                neighbor = valid_neighbors[random.randrange(0, np.shape(valid_neighbors)[0]), :]
-                if np.size(cell) > 2:
-                    # if cell is an array of cells, pick one cell with this neighbor only, at random
-                    cell = cell[np.sum(abs(cell - neighbor), axis=1) == 1]  # cells where distance to neighbor == 1
-                    cell = cell[random.randrange(0, np.shape(cell)[0]), :]
-                # mark neighbor visited
-                self.walls[neighbor[0], neighbor[1], 0] = 0
-                # remove the wall between current cell and neighbor. Applied to down and right walls only so may be that of the cell or the neighbor
-                self.walls[min(cell[0], neighbor[0]), min(cell[1], neighbor[1]), 1 + abs(neighbor[1] - cell[1])] = 0
-                if self.screen is not None:
-                    # if screen is set, draw the corridor from cell to neighbor
-                    self.draw_cell(cell, neighbor)
-                # check if more corridor length is still available
+                # Safe multiple path creation
+                if len(valid_neighbors) > 1 and random.random() < self.path_density:
+                    # Randomly select how many neighbors to process (up to 2)
+                    num_neighbors = min(2, len(valid_neighbors))
+                    # Shuffle valid neighbors and take the first num_neighbors
+                    neighbor_indices = list(range(len(valid_neighbors)))
+                    random.shuffle(neighbor_indices)
+                    
+                    for idx in neighbor_indices[:num_neighbors]:
+                        neighbor = valid_neighbors[idx]
+                        if self.walls[neighbor[0], neighbor[1], 0] == 1:
+                            self.process_neighbor(cell, neighbor)
+                    
+                    # Use the last processed neighbor for continuation
+                    neighbor = valid_neighbors[neighbor_indices[0]]
+                else:
+                    # Regular single neighbor processing
+                    neighbor_idx = random.randrange(0, len(valid_neighbors))
+                    neighbor = valid_neighbors[neighbor_idx]
+                    self.process_neighbor(cell, neighbor)
+
                 if round_nr - corridor_start < corridor_len:
-                    # continue current corridor: set current cell to neighbor
                     cell = np.array([neighbor[0], neighbor[1]], dtype=np.int16)
                 else:
-                    # maximum corridor length fully used; make a new junction and continue from there
                     need_cell_range = True
-
             else:
-                # no valid neighbors for this cell
-                if np.size(cell) > 2:
-                    # if cell already contains an array of cells, no more valid neighbors are available at all
-                    cell = np.zeros((0, 0))  # this will end the while loop, the maze is finished.
-                    if self.screen is not None:
-                        # if screen is set, make sure it is updated as the maze is now finished.
-                        pygame.display.flip()
-                else:
-                    # a dead end; make a new junction and continue from there
-                    need_cell_range = True
+                need_cell_range = True
 
             if need_cell_range:
-                # get all visited cells (=0) not marked as "no neighbors" (=-1), start a new corridor from one of these (make a junction)
-                cell = np.transpose(np.nonzero(self.walls[1:-1, 1:-1, 0] == 0)) + 1  # not checking the edge cells, hence needs the "+ 1"
-                # check these for valid neighbors (any adjacent cell with "1" as visited status (ie. not visited) is sufficient, hence MAX)
-                valid_neighbor_exists = np.array([self.walls[cell[:, 0] - 1, cell[:, 1], 0],
-                                                  self.walls[cell[:, 0] + 1, cell[:, 1], 0],
-                                                  self.walls[cell[:, 0], cell[:, 1] - 1, 0],
-                                                  self.walls[cell[:, 0], cell[:, 1] + 1, 0]
-                                                  ]).max(axis=0)
-                # get all visited cells with no neighbors
+                cell = np.transpose(np.nonzero(self.walls[1:-1, 1:-1, 0] == 0)) + 1
+                valid_neighbor_exists = np.array([
+                    self.walls[cell[:, 0] - 1, cell[:, 1], 0],
+                    self.walls[cell[:, 0] + 1, cell[:, 1], 0],
+                    self.walls[cell[:, 0], cell[:, 1] - 1, 0],
+                    self.walls[cell[:, 0], cell[:, 1] + 1, 0]
+                ]).max(axis=0)
                 cell_no_neighbors = cell[valid_neighbor_exists != 1]
-                # mark these (-1 = no neighbors) so they will no longer be actively used. This is not required but helps with large mazes.
                 self.walls[cell_no_neighbors[:, 0], cell_no_neighbors[:, 1], 0] = -1
-                corridor_start = round_nr + 0  # start a new corridor.
+                corridor_start = round_nr
                 need_cell_range = False
 
-        # return: drop out the additional edge cells. All cells visited anyway so just return the down and right edge data.
         if self.running:
             return self.walls[1:-1, 1:-1, 1:3]
-
+    
     def gen_maze_2D(self, corridor_len=999):
-
-        # converts walls data from gen_maze_walls to a NumPy array size (y * 2 + 1, x * 2 + 1)
-        # wall blocks are represented by 1 and corridors by 0.
-
         self.gen_maze_walls(corridor_len)
 
         if self.running:
-            # use wall data to set final output maze
-            self.blocks[1:-1:2, 1:-1:2] = 0  # every cell is visited if correctly generated
-            # horizontal walls
-            self.blocks[1:-1:2, 2:-2:2] = self.walls[1:-1, 1:-2, 2]  # use the right wall
-            # vertical walls
-            self.blocks[2:-2:2, 1:-1:2] = self.walls[1:-2, 1:-1, 1]  # use the down wall
+            self.blocks[1:-1:2, 1:-1:2] = 0
+            self.blocks[1:-1:2, 2:-2:2] = self.walls[1:-1, 1:-2, 2]
+            self.blocks[2:-2:2, 1:-1:2] = self.walls[1:-2, 1:-1, 1]
 
-        # Convert the NumPy array to a Python list
         maze_list = self.blocks.tolist()
-
-        # Save to a file
+        
+        print("saved maze_data")
         with open('experimental/mazes/maze_data.py', 'w') as f:
             f.write(f"LAYOUT = {maze_list}\n")
 
-        # Print the maze (optional)
-        print("Generated Maze Layout:")
-        for row in maze_list:
-            print(row)
-
         return self.blocks
+    
+    def process_neighbor(self, cell, neighbor):
+        """Process a single neighbor cell, potentially removing walls"""
+        if np.size(cell) > 2:
+            cell = cell[np.sum(abs(cell - neighbor), axis=1) == 1]
+            if len(cell) > 0:
+                cell = cell[random.randrange(0, np.shape(cell)[0]), :]
+            else:
+                return
+
+        # Check if wall should be removed
+        wall_dir = 1 + abs(neighbor[1] - cell[1])  # 1 for down, 2 for right
+        if self.should_remove_wall((min(cell[0], neighbor[0]), min(cell[1], neighbor[1])), wall_dir):
+            self.walls[min(cell[0], neighbor[0]), min(cell[1], neighbor[1]), wall_dir] = 0
+
+        self.walls[neighbor[0], neighbor[1], 0] = 0
+
+        if self.screen is not None:
+            self.draw_cell(cell, neighbor)
+
 
     def draw_cell(self, cell, neighbor):
-
-        # draw passage from cell to neighbor. As these are always adjacent can min/max be used.
         min_coord = (np.flip(np.minimum(cell, neighbor) * 2 - 1) * self.screen_block_size + self.screen_block_offset).astype(np.int16)
         max_coord = (np.flip(np.maximum(cell, neighbor) * 2 - 1) * self.screen_block_size + int(self.screen_block_size) + self.screen_block_offset).astype(np.int16)
         pygame.draw.rect(self.screen, (200, 200, 200), (min_coord, max_coord - min_coord))
@@ -168,7 +207,6 @@ class Maze:
             self.prev_update = pygame.time.get_ticks()
             pygame.display.flip()
 
-            # when performing display flip, handle some pygame events as well.
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
@@ -204,6 +242,19 @@ class Maze:
             if not exists(file_name):
                 pygame.image.save(self.screen, file_name)
                 break
+            
+    def count_removed_walls(self):
+        down_walls = np.sum(self.walls[1:-1, 1:-1, 1] == 0)
+        right_walls = np.sum(self.walls[1:-1, 1:-1, 2] == 0)
+        total_cells = (self.wall_size[0]) * (self.wall_size[1])
+        
+        print(f"\nMaze Statistics:")
+        print(f"Total cells: {total_cells}")
+        print(f"Removed down walls: {down_walls}")
+        print(f"Removed right walls: {right_walls}")
+        print(f"Total removed walls: {down_walls + right_walls}")
+        print(f"Average paths per cell: {(down_walls + right_walls) / total_cells:.2f}")
+
 
 
 if __name__ == '__main__':
@@ -215,68 +266,67 @@ if __name__ == '__main__':
     # set screen size and initialize it
     pygame.display.init()
     disp_size = (1920, 1080)
-    rect = np.array([0, 0, disp_size[0], disp_size[1]])  # the rect inside which to draw the maze. Top x, top y, width, height.
-    block_size = 10  # block size in pixels
+    rect = np.array([0, 0, disp_size[0], disp_size[1]])
+    block_size = 10
     screen = pygame.display.set_mode(disp_size)
-    pygame.display.set_caption('Maze Generator / KS 2022')
+    pygame.display.set_caption('Modified Maze Generator with Multiple Paths')
     running = True
 
     while running:
-
-        # intialize a maze, given size (y, x)
+        # Create and configure maze
         maze = Maze(rect[2] // (block_size * 2) - 1, rect[3] // (block_size * 2) - 1)
-        maze.screen = screen  # if this is set, the maze generation process will be displayed in a window. Otherwise not.
+        maze.screen = screen
+        maze.set_path_density(0.7)  # Set desired path density
+        
         screen.fill((0, 0, 0))
         maze.screen_size = np.asarray(disp_size)
         maze.screen_block_size = np.min(rect[2:4] / np.flip(maze.block_size))
-        maze.screen_block_offset = rect[0:2] + (rect[2:4] - maze.screen_block_size * np.flip(maze.block_size)) // 2
+        maze.screen_block_offset = rect[0:2] + (rect[2:4] - maze.screen_block_size * 
+                                              np.flip(maze.block_size)) // 2
 
-        # generate the maze - parameter: corridor length (optional)
+        # Generate maze
         start_time = pygame.time.get_ticks()
-        print(f'Generating a maze of {maze.wall_size[1]} x {maze.wall_size[0]} = {maze.wall_size[0] * maze.wall_size[1]} cells. Block size = {block_size}.')
+        print(f'Generating maze: {maze.wall_size[1]} x {maze.wall_size[0]} cells. '
+              f'Block size = {block_size}.')
         maze.gen_maze_2D()
+        
+        maze.count_removed_walls()
+
+        
         if maze.running:
-            print('Ready. Time: {:0.2f} seconds.'.format((pygame.time.get_ticks() - start_time) / 1000.0))
-            print('ESC or close the Maze window to end program. SPACE BAR for a new maze. UP & DOWN cursor keys to change block size. s to save maze image.')
+            print(f'Ready. Time: {(pygame.time.get_ticks() - start_time) / 1000.0:.2f} seconds.')
+            print('Controls: ESC/Close=Exit, SPACE=New maze, UP/DOWN=Change size, S=Save image')
         else:
             print('Aborted.')
 
-        # wait for exit (window close or ESC key) or left mouse button (new maze) or key commands
-        pygame.event.clear()  # clear the event queue
+        # Handle events
+        pygame.event.clear()
         running = maze.running
         pausing = maze.running
+        
         while pausing:
-            event = pygame.event.wait()  # wait for user input, yielding to other prcesses
+            event = pygame.event.wait()
             if event.type == pygame.QUIT:
                 pausing = False
                 running = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
                     pausing = False
-                if event.key == pygame.K_f:
+                elif event.key == pygame.K_f:
                     maze.toggle_fullscreen()
-                if event.key == pygame.K_s:
-                    # save screen as png image
+                elif event.key == pygame.K_s:
                     maze.save_image()
-                if event.key == pygame.K_DOWN:
-                    block_size -= 1
-                    if block_size < 1:
-                        block_size = 1
+                elif event.key == pygame.K_DOWN:
+                    block_size = max(1, block_size - 1)
                     pausing = False
-                if event.key == pygame.K_UP:
-                    block_size += 1
-                    if block_size > min(rect[2], rect[3]) // 10:
-                        block_size = min(rect[2], rect[3]) // 10
+                elif event.key == pygame.K_UP:
+                    block_size = min(min(rect[2], rect[3]) // 10, block_size + 1)
                     pausing = False
-                if event.key == pygame.K_ESCAPE:
+                elif event.key == pygame.K_ESCAPE:
                     pausing = False
                     running = False
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:
-                    # left button: new maze
-                    pausing = False
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                pausing = False
 
-    # exit; close display
     pygame.quit()
     exit()
-
