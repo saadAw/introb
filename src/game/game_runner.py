@@ -2,28 +2,22 @@ import pygame
 from src.environment.map import Map
 from src.environment.robot import Robot
 from src.game.game_logic import GameLogic
-from src.environment.constants import GameState, FPS, COLORS
-
+from src.environment.constants import GameState, FPS, COLORS, WINDOW_SIZE, MAP_WIDTH, MAP_HEIGHT
 
 class GameRunner:
     """Main game runner class that handles game initialization and main loop"""
     def __init__(self):
         pygame.init()
-        self.setup_window()
-        self.setup_game()
-
-    def setup_window(self):
-        """Initialize game window and surfaces"""
-        self.WINDOW_SIZE = (900, 900)
-        self.screen = pygame.display.set_mode(self.WINDOW_SIZE)
+        
+        self.screen = pygame.display.set_mode(WINDOW_SIZE)
         pygame.display.set_caption("Robot Navigation Game")
+        
+        self.setup_game()
 
     def setup_game(self):
         """Initialize game components"""
-        # Create game map - single fixed layout
-        self.game_map = Map(10, 10)
+        self.game_map = Map(MAP_WIDTH, MAP_HEIGHT)
         
-        # Initialize robot at fixed spawn position
         self.robot = Robot(
             x=self.game_map.SPAWN_POS[0],
             y=self.game_map.SPAWN_POS[1],
@@ -38,7 +32,7 @@ class GameRunner:
         )
         
         self.game_map.place_robot(self.robot.x, self.robot.y)
-        self.game_logic = GameLogic()
+        self.game_logic = GameLogic((MAP_WIDTH, MAP_HEIGHT))
         
         self.full_surface = pygame.Surface((
             self.game_map.screen_width,
@@ -89,7 +83,7 @@ class GameRunner:
 
         # Scale and display
         scaled_surface = pygame.transform.scale(
-            self.full_surface, self.WINDOW_SIZE)
+            self.full_surface, WINDOW_SIZE)
         self.screen.fill(COLORS['BLACK'])
         self.screen.blit(scaled_surface, (0, 0))
         pygame.display.flip()
