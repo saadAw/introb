@@ -4,7 +4,7 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ..src.environment import Map, Robot, Game
-from ..src.environment.constants import GameState, FPS, COLORS
+from ..src.config.constants import GameState, FPS, COLORS
 
 # Initialisiere Pygame
 pygame.init()

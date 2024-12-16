@@ -1,5 +1,6 @@
 import pygame
-from src.environment.constants import GameState, TIME_LIMIT, FPS, COLORS
+
+from src.config.constants import GameState, TIME_LIMIT, FPS, COLORS
 
 class GameLogic:
     """Handles game logic, scoring, and UI elements"""

@@ -1,9 +1,9 @@
 import pygame
 import random
-from src.environment.map_random import Map
+from old.map_random import Map
 from src.environment.robot import Robot
-from src.game.game_logic_random import GameLogic
-from src.environment.constants import GameState, FPS, COLORS
+from old.game_logic_random import GameLogic
+from config.constants import GameState, FPS, COLORS
 
 class GameRunner:
     """Main game runner class that handles game initialization and main loop"""

@@ -15,13 +15,14 @@ class MapSymbols:
     GOAL = 'G'
 
 # Game Configuration
-CELL_SIZE = 64  # Reduced from 128 to allow for larger map
-MAP_WIDTH = 20  # New constant for map width
-MAP_HEIGHT = 20  # New constant for map height
-WINDOW_SIZE = (1280, 1280)  # New constant for window size
+CELL_SIZE = 32
+MAP_WIDTH = 25
+MAP_HEIGHT = 25
+WINDOW_SIZE = (800, 800)
+
 
 ANIMATION_FRAMES = 60
-TIME_LIMIT = 60  # seconds
+TIME_LIMIT = 120  # seconds
 FPS = 30
 
 # Colors

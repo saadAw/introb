@@ -1,4 +1,4 @@
-from src.environment.constants import MapSymbols, CELL_SIZE, COLORS
+from config.constants import MapSymbols, CELL_SIZE, COLORS
 import random
 import pygame
 from collections import deque
