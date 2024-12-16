@@ -17,14 +17,8 @@ from src.algorithms.pathfinding.dijkstra import DijkstraPathfinder
 from src.algorithms.reinforcement.deep_q_learning import DQNAgent
 from src.algorithms.pathfinding.astar import AStarPathfinder
 
-class AlgorithmType(Enum):
-    """Enum for different pathfinding algorithms"""
-    MANUAL = "Manual Control"
-    ASTAR = "A* Algorithm"
-    DIJKSTRA = "Dijkstra Algorithm"
-    QL = "Q-Learning"
-    DQN = "Deep Q-Learning"
-    
+from src.config.types import AlgorithmType
+
 class GameRunner:
     """Main game runner class that handles game initialization and main loop"""
     def __init__(self):
@@ -63,7 +57,8 @@ class GameRunner:
             try:
                 self.ui_manager = UIManager()
                 self.clock = pygame.time.Clock()
-                self.game_logic = GameLogic((self.game_map.width, self.game_map.height))
+                self.game_logic = GameLogic((self.game_map.width, self.game_map.height))  
+                self.game_logic.state = GameState.WAITING
                 
                 self.robot = Robot(
                     x=self.game_map.SPAWN_POS[0],
@@ -105,61 +100,93 @@ class GameRunner:
                 sys.exit(1)
                 
 
-    def setup_game(self):
-        """Reset game state"""
-        try:
-            # Reset map and robot position
-            self.game_map.load_map()
-            self.robot.x = self.game_map.SPAWN_POS[0]
-            self.robot.y = self.game_map.SPAWN_POS[1]
-            self.game_map.place_robot(self.robot.x, self.robot.y)
-            
-            # Reset game logic
-            self.game_logic = GameLogic((self.game_map.width, self.game_map.height))
-            self.robot.set_game_logic(self.game_logic)
-            
-            # Reset pathfinder if active
-            if self.current_algorithm in self.pathfinders:
-                self.current_pathfinder = self.pathfinders[self.current_algorithm]()
-                
-        except Exception as e:
-            print(f"Error during game reset: {e}")
-            self.cleanup()
+    def setup_game(self):  
+        """Reset game state"""  
+        try:  
+            # Reset map and robot position  
+            self.game_map.load_map()  
+            self.robot.x = self.game_map.SPAWN_POS[0]  
+            self.robot.y = self.game_map.SPAWN_POS[1]  
+            self.game_map.place_robot(self.robot.x, self.robot.y)  
+
+            # Reset game logic to waiting state  
+            self.game_logic = GameLogic((self.game_map.width, self.game_map.height))  
+            self.game_logic.state = GameState.WAITING  
+            self.robot.set_game_logic(self.game_logic)  
+
+            # Reset current algorithm  
+            self.current_algorithm = AlgorithmType.MANUAL  
+            self.current_pathfinder = None  
+
+        except Exception as e:  
+            print(f"Error during game reset: {e}")  
+            self.cleanup()  
             sys.exit(1)
 
-    def handle_events(self):
-        """Process game events"""
+    def setup_algorithms(self):
+        """Initialize all pathfinding algorithms"""
         try:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    self.running = False
-                    return
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_r and self.game_logic.state != GameState.PLAYING:
-                        self.setup_game()
-                    elif event.key == pygame.K_ESCAPE:
-                        self.running = False
-                        return
-                    elif event.key == pygame.K_1:
-                        self.current_algorithm = AlgorithmType.MANUAL
-                    elif event.key == pygame.K_2:
-                        if AlgorithmType.ASTAR in self.pathfinders:
-                            self.current_algorithm = AlgorithmType.ASTAR
-                            self.current_pathfinder = self.pathfinders[AlgorithmType.ASTAR]()
-                    elif event.key == pygame.K_3:
-                        self.current_algorithm = AlgorithmType.DIJKSTRA
-                        self.current_pathfinder = self.pathfinders[AlgorithmType.DIJKSTRA]()
-                    elif event.key == pygame.K_4:
-                        if AlgorithmType.QL in self.pathfinders:
-                            self.current_algorithm = AlgorithmType.QL
-                            self.current_pathfinder = self.pathfinders[AlgorithmType.QL]()
-                    elif event.key == pygame.K_5:
-                        if AlgorithmType.DQN in self.pathfinders:
-                            self.current_algorithm = AlgorithmType.DQN
-                            self.current_pathfinder = self.pathfinders[AlgorithmType.DQN]()
+            self.pathfinders = {
+                AlgorithmType.DIJKSTRA: lambda: DijkstraPathfinder(self.game_map),
+                AlgorithmType.ASTAR: lambda: AStarPathfinder(self.game_map),
+                # Add other algorithms as they're implemented
+                # AlgorithmType.QL: lambda: QLAgent(self.game_map),
+                AlgorithmType.DQN: lambda: DQNAgent(self.game_map),
+            }
         except Exception as e:
-            print(f"Error handling events: {e}")
-            self.running = False
+            print(f"Error setting up algorithms: {e}")
+            raise
+
+    def handle_events(self):  
+        """Process game events"""  
+        try:  
+            for event in pygame.event.get():  
+                if event.type == pygame.QUIT or (  
+                    event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE  
+                ):  
+                    self.running = False  
+                    return  
+
+                if event.type == pygame.KEYDOWN:  
+                    if event.key == pygame.K_r:  
+                        self.setup_game()  
+                        self.game_logic.state = GameState.WAITING  
+                        return  
+
+                    # Algorithmus-Auswahl nur im WAITING-Zustand  
+                    if self.game_logic.state == GameState.WAITING:  
+                        self._handle_algorithm_selection(event.key)  
+
+        except Exception as e:  
+            print(f"Error handling events: {e}")  
+            self.running = False  
+
+    def _handle_algorithm_selection(self, key):  
+        """Handle algorithm selection based on key press"""  
+        if key not in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5]:  
+            return  
+
+        # Wenn gleicher Algorithmus gewählt wird, lösche seinen Pfad  
+        if self.current_algorithm:  
+            self.game_map.clear_algorithm_path(self.current_algorithm)  
+
+        # Dictionary für Algorithmus-Zuordnung  
+        algorithm_map = {  
+            pygame.K_1: (AlgorithmType.MANUAL, None),  
+            pygame.K_2: (AlgorithmType.ASTAR, self.pathfinders.get(AlgorithmType.ASTAR)),  
+            pygame.K_3: (AlgorithmType.DIJKSTRA, self.pathfinders.get(AlgorithmType.DIJKSTRA)),  
+            pygame.K_4: (AlgorithmType.QL, self.pathfinders.get(AlgorithmType.QL)),  
+            pygame.K_5: (AlgorithmType.DQN, self.pathfinders.get(AlgorithmType.DQN))  
+        }  
+
+        if key in algorithm_map:  
+            algo_type, pathfinder_creator = algorithm_map[key]  
+            self.current_algorithm = algo_type  
+            self.current_pathfinder = pathfinder_creator() if pathfinder_creator else None  
+
+            if self.current_algorithm:  
+                self.game_logic.set_algorithm(self.current_algorithm)  
+                self.game_logic.state = GameState.PLAYING
             
     def handle_input(self):
         """Handle input based on current algorithm"""
@@ -255,20 +282,6 @@ class GameRunner:
             print(f"Error in main game loop: {e}")
         finally:
             self.cleanup()
-            
-    def setup_algorithms(self):
-            """Initialize all pathfinding algorithms"""
-            try:
-                self.pathfinders = {
-                    AlgorithmType.DIJKSTRA: lambda: DijkstraPathfinder(self.game_map),
-                    AlgorithmType.ASTAR: lambda: AStarPathfinder(self.game_map),
-                    # Add other algorithms as they're implemented
-                    # AlgorithmType.QL: lambda: QLAgent(self.game_map),
-                    AlgorithmType.DQN: lambda: DQNAgent(self.game_map),
-                }
-            except Exception as e:
-                print(f"Error setting up algorithms: {e}")
-                raise
 
 if __name__ == "__main__":
     try:

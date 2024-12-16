@@ -1,16 +1,18 @@
-import pygame
-
-from src.config.constants import GameState, TIME_LIMIT, FPS, COLORS
-
-class GameLogic:
-    """Handles game logic, scoring, and UI elements"""
-    def __init__(self, map_size=(10, 10)):
-        self.state = GameState.PLAYING
-        self.time_remaining = TIME_LIMIT * FPS
-        self.score = 0
-        self.map_size = map_size
-        self.moves_made = 0
-        self.optimal_path_length = 13
+import pygame  
+from src.config.constants import GameState, TIME_LIMIT, FPS, COLORS  
+from src.config.types import AlgorithmType
+  
+class GameLogic:  
+    """Handles game logic, scoring, and UI elements"""  
+    def __init__(self, map_size=(10, 10)):  
+        self.state = GameState.PLAYING  
+        self.time_remaining = TIME_LIMIT * FPS  
+        self.score = 0  
+        self.map_size = map_size  
+        self.moves_made = 0  
+        self.optimal_path_length = 13  
+        self.current_algorithm = None    
+        self.used_algorithms = set()
 
     def update(self):
         """Updates game state including time"""
@@ -55,3 +57,7 @@ class GameLogic:
             return -1  # Small negative reward for moving away
         
         return -0.1  # Tiny negative reward for each step to encourage efficiency
+
+    def set_algorithm(self, algorithm: AlgorithmType):  
+        self.current_algorithm = algorithm  
+        self.used_algorithms.add(algorithm)

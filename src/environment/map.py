@@ -1,12 +1,23 @@
-import pygame
-from typing import Tuple
+import pygame  
+from typing import Tuple  
 
-from src.config.constants import MapSymbols, COLORS, calculate_dimensions
-from src.environment.mazes.maze_data import LAYOUT
+from src.config.constants import MapSymbols, COLORS, calculate_dimensions  
+from src.environment.mazes.maze_data import LAYOUT  
+from src.config.types import AlgorithmType
 
-class Map:
-    """Represents the game map with a single fixed layout"""
-    
+class Map:  
+    """Represents the game map with a single fixed layout"""    
+
+    # Klassenkonstanten am Anfang der Klasse definieren    
+    ALGORITHM_COLORS = {    
+        AlgorithmType.MANUAL: COLORS['PATH_MANUAL'],    
+        AlgorithmType.ASTAR: COLORS['PATH_ASTAR'],    
+        AlgorithmType.DIJKSTRA: COLORS['PATH_DIJKSTRA'],    
+        AlgorithmType.QL: COLORS['PATH_QL'],    
+        AlgorithmType.DQN: COLORS['PATH_DQN']    
+    }    
+    PATH_SCALE = 0.6  # 60% der Zellgröße    
+
     def __init__(self, width: int, height: int):
         """Initialize map with given dimensions"""
         # Get maze dimensions from LAYOUT
@@ -37,6 +48,17 @@ class Map:
         # Initialize the grid
         self.grid = [[MapSymbols.FREE for _ in range(self.width)] 
                     for _ in range(self.height)]
+        
+        self.algorithm_paths = {  
+            AlgorithmType.MANUAL: set(),  
+            AlgorithmType.ASTAR: set(),  
+            AlgorithmType.DIJKSTRA: set(),  
+            AlgorithmType.QL: set(),  
+            AlgorithmType.DQN: set()  
+        }
+
+        self.path_grid = {}      # Speichert {(x,y): AlgorithmType} für besetzte Felder  
+        self.paths = {}          # Speichert {AlgorithmType: set(positions)} für jeden Algorithmus
         
         self.load_map()
 
@@ -92,10 +114,26 @@ class Map:
         self.grid[y][x] = MapSymbols.GOAL
         self.goal_pos = (x, y)
 
-    def draw_map(self, surface, offset_x=0):
-        """Draw the map with all elements on given surface"""
-        self._draw_cells(surface, offset_x)
-        self._draw_grid(surface, offset_x)
+    def draw_map(self, surface, offset_x=0):    
+        """Draw the map with all elements on given surface"""    
+        self._draw_cells(surface, offset_x)    
+        self._draw_grid(surface, offset_x)    
+
+        # Zeichne alle markierten Felder gemäß path_grid  
+        for pos, algo_type in self.path_grid.items():  
+            x, y = pos  
+            color = self.ALGORITHM_COLORS[algo_type]  
+            rect = pygame.Rect(  
+                offset_x + x * self.cell_size,  
+                y * self.cell_size,  
+                self.cell_size,  
+                self.cell_size  
+            )  
+            # Verwende PATH_SCALE für die Größe  
+            pygame.draw.rect(surface, color, rect.inflate(  
+                -self.cell_size * self.PATH_SCALE,  
+                -self.cell_size * self.PATH_SCALE  
+            ))
 
     def _draw_cells(self, surface, offset_x=0):
         """Draw all cells (private helper method)"""
@@ -132,3 +170,26 @@ class Map:
         return (0 <= x < self.width and
                 0 <= y < self.height and
                 self.grid[y][x] != MapSymbols.OBSTACLE)
+    
+    def add_to_path(self, pos: Tuple[int, int], algorithm: AlgorithmType):  
+        """Add position to algorithm's path and update path_grid"""  
+        if algorithm not in self.paths:  
+            self.paths[algorithm] = set()  
+
+        self.paths[algorithm].add(pos)  
+        self.path_grid[pos] = algorithm  # Überschreibt automatisch existierende Pfade  
+
+    def clear_algorithm_path(self, algorithm: AlgorithmType):  
+        """Clear path for specific algorithm"""  
+        if algorithm in self.paths:  
+            # Entferne alle Positionen dieses Algorithmus aus dem path_grid  
+            positions_to_remove = []  
+            for pos, algo in self.path_grid.items():  
+                if algo == algorithm:  
+                    positions_to_remove.append(pos)  
+
+            for pos in positions_to_remove:  
+                del self.path_grid[pos]  
+
+            # Lösche den Pfad aus paths  
+            self.paths[algorithm].clear()

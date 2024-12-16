@@ -3,6 +3,7 @@ import pygame
 
 class GameState(Enum):
     """Game states enumeration"""
+    WAITING = "waiting"
     PLAYING = "playing"
     WIN = "win"
     LOSE = "lose"
@@ -69,5 +70,10 @@ COLORS = {
     'TIMER_WARNING': (255, 165, 0),
     'UI_BACKGROUND': (240, 240, 240),
     'UI_TEXT': (50, 50, 50),
-    'UI_HEADER': (70, 70, 70)
+    'UI_HEADER': (70, 70, 70),
+    'PATH_MANUAL': (100, 100, 100),    # Grau  
+    'PATH_ASTAR': (255, 165, 0),       # Orange  
+    'PATH_DIJKSTRA': (138, 43, 226),   # Violett  
+    'PATH_QL': (0, 191, 255),          # Hellblau  
+    'PATH_DQN': (50, 205, 50),         # Grün
 }

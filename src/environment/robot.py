@@ -94,6 +94,9 @@ class Robot:
                 if self.game_logic:
                     new_pos = (new_x, new_y)
                     self.game_logic.calculate_reward(old_pos, new_pos, game_map.goal_pos)
+
+            if direction != 'idle':  
+                game_map.add_to_path((self.x, self.y), self.game_logic.current_algorithm)
             
             self.last_move_time = current_time
 
