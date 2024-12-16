@@ -15,7 +15,7 @@ from src.config.constants import (
 )
 from src.algorithms.pathfinding.dijkstra import DijkstraPathfinder
 from src.algorithms.reinforcement.deep_q_learning import DQNAgent
-# from src.pathfinding.astar import AStarPathfinder
+from src.algorithms.pathfinding.astar import AStarPathfinder
 
 class AlgorithmType(Enum):
     """Enum for different pathfinding algorithms"""
@@ -261,8 +261,8 @@ class GameRunner:
             try:
                 self.pathfinders = {
                     AlgorithmType.DIJKSTRA: lambda: DijkstraPathfinder(self.game_map),
+                    AlgorithmType.ASTAR: lambda: AStarPathfinder(self.game_map),
                     # Add other algorithms as they're implemented
-                    # AlgorithmType.ASTAR: lambda: AStarPathfinder(self.game_map),
                     # AlgorithmType.QL: lambda: QLAgent(self.game_map),
                     AlgorithmType.DQN: lambda: DQNAgent(self.game_map),
                 }
