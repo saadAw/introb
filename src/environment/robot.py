@@ -1,9 +1,9 @@
+# src/environment/robot.py
 import pygame
-
-from src.config.constants import COLORS, CELL_SIZE
+from src.config.constants import COLORS
 
 class Robot:
-    def __init__(self, x, y, idle_path, walk_paths, speed=1, cooldown=50):
+    def __init__(self, x, y, idle_path, walk_paths, cell_size, speed=1, cooldown=50):
         self.x = x
         self.y = y
         self.speed = speed
@@ -13,12 +13,15 @@ class Robot:
         self.facing_direction = 'up'  # Track which way the robot is facing
         self.game_logic = None
         
+        # Store cell size
+        self.cell_size = cell_size
+        
         # Sprite size (2.5x cell size)
-        self.sprite_size = int(CELL_SIZE * 2.5)
+        self.sprite_size = int(self.cell_size * 2.5)
         
         # Adjust offsets for larger sprite
-        self.offset_x = -self.sprite_size // 2 + CELL_SIZE // 2
-        self.offset_y = -self.sprite_size // 2 + CELL_SIZE // 2
+        self.offset_x = -self.sprite_size // 2 + self.cell_size // 2
+        self.offset_y = -self.sprite_size // 2 + self.cell_size // 2
         
         # Load and scale images - we'll only use walk animations
         self.walk_images = {
@@ -94,8 +97,8 @@ class Robot:
             
             self.last_move_time = current_time
 
-    def display(self, surface):
-        """Display the robot with corrected positioning."""
-        position_x = self.x * CELL_SIZE + self.offset_x
-        position_y = self.y * CELL_SIZE + self.offset_y
+    def display(self, surface, offset_x=0):
+        """Display the robot with corrected positioning"""
+        position_x = offset_x + self.x * self.cell_size + self.offset_x
+        position_y = self.y * self.cell_size + self.offset_y
         surface.blit(self.current_image, (position_x, position_y))

@@ -5,7 +5,13 @@ from enum import Enum
 from src.environment.map import Map
 from src.environment.robot import Robot
 from src.game.game_logic import GameLogic
-from src.config.constants import GameState, FPS, COLORS, WINDOW_SIZE, MAP_WIDTH, MAP_HEIGHT
+from src.config.constants import (
+    GameState, 
+    FPS, 
+    COLORS, 
+    UI_PANEL_WIDTH,
+    calculate_dimensions
+)
 from src.algorithms.pathfinding.dijkstra import DijkstraPathfinder
 from src.game.ui_manager import UIManager
 # Import other algorithms as they're implemented
@@ -19,90 +25,107 @@ class AlgorithmType(Enum):
     ASTAR = "A*"
     QL = "Q-Learning"
     DQN = "Deep Q-Network"
+    
 
 class GameRunner:
     """Main game runner class that handles game initialization and main loop"""
     def __init__(self):
-        # Initialize stuff
         if not pygame.get_init():
             pygame.init()
             
-        self.ui_manager = UIManager()
-
-        # Set up the display
-        self.screen = pygame.display.set_mode(WINDOW_SIZE)
-        pygame.display.set_caption("Robot Navigation Game")
+        self.setup_initial_components()
+        self.setup_remaining_components()
         
-        # Initialize the clock
-        self.clock = pygame.time.Clock()
-        
-        # Initialize algorithm settings
-        self.current_algorithm = AlgorithmType.MANUAL
-        self.pathfinders = {}
-        self.setup_algorithms()
-        
-        # Set up game components
-        self.setup_game()
-        
-        # Flag for game loop
         self.running = True
-        
 
-    def setup_algorithms(self):
-        """Initialize all pathfinding algorithms"""
+    def setup_initial_components(self):
+        """Initialize core components needed for window setup"""
         try:
-            # Initialize only after game_map is created
-            self.pathfinders = {
-                AlgorithmType.DIJKSTRA: lambda: DijkstraPathfinder(self.game_map),
-                # Add other algorithms as they're implemented
-                # AlgorithmType.ASTAR: lambda: AStarPathfinder(self.game_map),
-                # AlgorithmType.QL: lambda: QLAgent(self.game_map),
-                # AlgorithmType.DQN: lambda: DQNAgent(self.game_map),
-            }
+            # Create map first to get dimensions
+            self.game_map = Map(0, 0)  # Dimensions will be calculated in Map class
+            
+            # Set up the display with the map's calculated dimensions
+            window_width = UI_PANEL_WIDTH + self.game_map.screen_width
+            window_height = self.game_map.screen_height
+            
+            print(f"Window size: {window_width}x{window_height}")
+            print(f"Cell size: {self.game_map.cell_size}")
+            
+            # Set up the display
+            self.screen = pygame.display.set_mode((window_width, window_height))
+            pygame.display.set_caption("Robot Navigation Game")
+            
         except Exception as e:
-            print(f"Error setting up algorithms: {e}")
-            raise
+            print(f"Error during initial setup: {e}")
+            pygame.quit()
+            sys.exit(1)
+
+    def setup_remaining_components(self):
+            """Initialize remaining game components"""
+            try:
+                self.ui_manager = UIManager()
+                self.clock = pygame.time.Clock()
+                self.game_logic = GameLogic((self.game_map.width, self.game_map.height))
+                
+                self.robot = Robot(
+                    x=self.game_map.SPAWN_POS[0],
+                    y=self.game_map.SPAWN_POS[1],
+                    idle_path='assets/images/idle60',
+                    walk_paths={
+                        'down': 'assets/images/walk60/down',
+                        'up': 'assets/images/walk60/up',
+                        'left': 'assets/images/walk60/left',
+                        'right': 'assets/images/walk60/right'
+                    },
+                    cell_size=self.game_map.cell_size,
+                    speed=1
+                )
+                
+                # Connect game logic to robot
+                self.robot.set_game_logic(self.game_logic)
+                self.game_map.place_robot(self.robot.x, self.robot.y)
+                
+                # Create surface for drawing
+                self.full_surface = pygame.Surface((
+                    UI_PANEL_WIDTH + self.game_map.screen_width,
+                    self.game_map.screen_height
+                ))
+                
+                # Initialize algorithm settings
+                self.current_algorithm = AlgorithmType.MANUAL
+                self.pathfinders = {}
+                self.setup_algorithms()
+                
+                # Initialize current pathfinder
+                self.current_pathfinder = None
+                if self.current_algorithm in self.pathfinders:
+                    self.current_pathfinder = self.pathfinders[self.current_algorithm]()
+                    
+            except Exception as e:
+                print(f"Error during component setup: {e}")
+                self.cleanup()
+                sys.exit(1)
+                
 
     def setup_game(self):
-        """Initialize game components"""
+        """Reset game state"""
         try:
-            self.game_map = Map(MAP_WIDTH, MAP_HEIGHT)
-            self.game_logic = GameLogic((MAP_WIDTH, MAP_HEIGHT))
-            
-            self.robot = Robot(
-                x=self.game_map.SPAWN_POS[0],
-                y=self.game_map.SPAWN_POS[1],
-                idle_path='assets/images/idle60',
-                walk_paths={
-                    'down': 'assets/images/walk60/down',
-                    'up': 'assets/images/walk60/up',
-                    'left': 'assets/images/walk60/left',
-                    'right': 'assets/images/walk60/right'
-                },
-                speed=1
-            )
-            
-            # Connect game logic to robot
-            self.robot.set_game_logic(self.game_logic)
-            
+            # Reset map and robot position
+            self.game_map.load_map()
+            self.robot.x = self.game_map.SPAWN_POS[0]
+            self.robot.y = self.game_map.SPAWN_POS[1]
             self.game_map.place_robot(self.robot.x, self.robot.y)
             
-            # Create the surface with proper dimensions
-            self.full_surface = pygame.Surface((
-                self.game_map.screen_width,
-                self.game_map.screen_height
-            ))
+            # Reset game logic
+            self.game_logic = GameLogic((self.game_map.width, self.game_map.height))
+            self.robot.set_game_logic(self.game_logic)
             
-            # Initialize algorithms after game_map is created
-            self.setup_algorithms()
-            
-            # Initialize current pathfinder
-            self.current_pathfinder = None
+            # Reset pathfinder if active
             if self.current_algorithm in self.pathfinders:
                 self.current_pathfinder = self.pathfinders[self.current_algorithm]()
                 
         except Exception as e:
-            print(f"Error during game setup: {e}")
+            print(f"Error during game reset: {e}")
             self.cleanup()
             sys.exit(1)
 
@@ -190,20 +213,25 @@ class GameRunner:
     def draw(self):
         """Handle all drawing operations"""
         try:
-            self.full_surface.fill(COLORS['WHITE'])
-            self.game_map.draw_map(self.full_surface)
-            self.robot.display(self.full_surface)
+            # Create main surface with calculated dimensions
+            window_width = UI_PANEL_WIDTH + self.game_map.screen_width
+            window_height = self.game_map.screen_height
+            main_surface = pygame.Surface((window_width, window_height))
+            main_surface.fill(COLORS['WHITE'])
             
+            # Draw map on the right side of the panel
+            self.game_map.draw_map(main_surface, offset_x=UI_PANEL_WIDTH)
+            self.robot.display(main_surface, offset_x=UI_PANEL_WIDTH)
+            
+            # Draw UI on the left panel
             self.ui_manager.draw_game_ui(
-                self.full_surface,
+                main_surface,
                 self.game_logic,
                 self.current_algorithm
             )
-
-            scaled_surface = pygame.transform.scale(
-                self.full_surface, WINDOW_SIZE)
-            self.screen.fill(COLORS['BLACK'])
-            self.screen.blit(scaled_surface, (0, 0))
+            
+            # Update display
+            self.screen.blit(main_surface, (0, 0))
             pygame.display.flip()
         except Exception as e:
             print(f"Error drawing game: {e}")
@@ -229,6 +257,20 @@ class GameRunner:
             print(f"Error in main game loop: {e}")
         finally:
             self.cleanup()
+            
+    def setup_algorithms(self):
+            """Initialize all pathfinding algorithms"""
+            try:
+                self.pathfinders = {
+                    AlgorithmType.DIJKSTRA: lambda: DijkstraPathfinder(self.game_map),
+                    # Add other algorithms as they're implemented
+                    # AlgorithmType.ASTAR: lambda: AStarPathfinder(self.game_map),
+                    # AlgorithmType.QL: lambda: QLAgent(self.game_map),
+                    # AlgorithmType.DQN: lambda: DQNAgent(self.game_map),
+                }
+            except Exception as e:
+                print(f"Error setting up algorithms: {e}")
+                raise
 
 if __name__ == "__main__":
     try:

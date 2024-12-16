@@ -1,97 +1,116 @@
 import pygame
-from src.config.constants import COLORS, FPS, GameState
+from src.config.constants import COLORS, FPS, GameState, UI_PANEL_WIDTH, PADDING
 
 class UIManager:
     """Handles all UI rendering and management"""
     def __init__(self):
-        self.font = pygame.font.Font(None, 36)
-        self.small_font = pygame.font.Font(None, 24)
-        self.padding = 5
+        self.font_large = pygame.font.Font(None, 40)
+        self.font = pygame.font.Font(None, 32)
+        self.font_small = pygame.font.Font(None, 24)
+        self.padding = PADDING
         
     def draw_game_ui(self, surface, game_logic, current_algorithm):
-        """Draw all UI elements"""
-        self._draw_time(surface, game_logic)
-        self._draw_score(surface, game_logic)
-        self._draw_algorithm_info(surface, current_algorithm)
-        self._draw_controls_info(surface)
-        
-        if game_logic.state != GameState.PLAYING:
-            self._draw_game_state(surface, game_logic)
+        """Draw all UI elements in the left panel"""
+        # Draw UI panel background
+        panel_rect = pygame.Rect(0, 0, UI_PANEL_WIDTH, surface.get_height())
+        pygame.draw.rect(surface, COLORS['UI_BACKGROUND'], panel_rect)
+        pygame.draw.line(surface, COLORS['GRID'], 
+                        (UI_PANEL_WIDTH, 0), 
+                        (UI_PANEL_WIDTH, surface.get_height()), 2)
 
-    def _draw_time(self, surface, game_logic):
-        """Draw time remaining"""
-        time_text = f"Time: {game_logic.time_remaining // FPS}"
-        color = COLORS['TIMER_WARNING'] if game_logic.time_remaining < 10 * FPS else COLORS['BLACK']
-        time_surface = self.font.render(time_text, True, color)
+        current_y = self.padding
         
-        pygame.draw.rect(surface, COLORS['WHITE'],
-                        (5, 5, time_surface.get_width() + 2*self.padding,
-                         time_surface.get_height() + 2*self.padding))
-        surface.blit(time_surface, (10, 10))
+        # Game title
+        title_surf = self.font_large.render("Robot Navigation", True, COLORS['UI_HEADER'])
+        surface.blit(title_surf, (self.padding, current_y))
+        current_y += title_surf.get_height() + self.padding
 
-    def _draw_score(self, surface, game_logic):
-        """Draw score and moves"""
-        score_text = f"Score: {game_logic.score} | Moves: {game_logic.moves_made}"
-        score_surface = self.font.render(score_text, True, COLORS['BLACK'])
+        # Current mode
+        current_y = self._draw_section_header("Current Mode", surface, current_y)
+        mode_surf = self.font.render(current_algorithm.value, True, COLORS['UI_TEXT'])
+        surface.blit(mode_surf, (self.padding, current_y))
+        current_y += mode_surf.get_height() + self.padding * 2
+
+        # Time and Score section
+        current_y = self._draw_section_header("Statistics", surface, current_y)
         
-        pygame.draw.rect(surface, COLORS['WHITE'],
-                        (5, 45, score_surface.get_width() + 2*self.padding,
-                         score_surface.get_height() + 2*self.padding))
-        surface.blit(score_surface, (10, 50))
+        # Time
+        time_color = COLORS['TIMER_WARNING'] if game_logic.time_remaining < 10 * FPS else COLORS['UI_TEXT']
+        time_surf = self.font.render(f"Time: {game_logic.time_remaining // FPS}s", True, time_color)
+        surface.blit(time_surf, (self.padding, current_y))
+        current_y += time_surf.get_height() + self.padding
 
-    def _draw_algorithm_info(self, surface, current_algorithm):
-        """Draw current algorithm information"""
-        algo_text = f"Current Mode: {current_algorithm.value}"
-        algo_surface = self.font.render(algo_text, True, COLORS['BLACK'])
-        
-        pygame.draw.rect(surface, COLORS['WHITE'],
-                        (5, 85, algo_surface.get_width() + 2*self.padding,
-                         algo_surface.get_height() + 2*self.padding))
-        surface.blit(algo_surface, (10, 90))
+        # Score and moves
+        score_surf = self.font.render(f"Score: {game_logic.score}", True, COLORS['UI_TEXT'])
+        surface.blit(score_surf, (self.padding, current_y))
+        current_y += score_surf.get_height() + 5
 
-    def _draw_controls_info(self, surface):
-        """Draw control information"""
+        moves_surf = self.font.render(f"Moves: {game_logic.moves_made}", True, COLORS['UI_TEXT'])
+        surface.blit(moves_surf, (self.padding, current_y))
+        current_y += moves_surf.get_height() + self.padding * 2
+
+        # Controls section
+        current_y = self._draw_section_header("Controls", surface, current_y)
         controls = [
-            "Controls:",
             "1: Manual Mode",
             "2: Dijkstra Algorithm",
-            "3: A* Algorithm (Coming Soon)",
-            "4: DQN (Coming Soon)",
-            "5: PPO (Coming Soon)",
+            "3: A* Algorithm (Soon)",
+            "4: DQN (Soon)",
+            "5: PPO (Soon)",
+            "",
+            "Arrow Keys: Move",
             "R: Reset Game",
             "ESC: Quit"
         ]
         
-        start_y = 130
-        max_width = 0
-        surfaces = []
-        
-        # Prepare all text surfaces
-        for text in controls:
-            text_surface = self.small_font.render(text, True, COLORS['BLACK'])
-            surfaces.append(text_surface)
-            max_width = max(max_width, text_surface.get_width())
-        
-        # Draw background rectangle
-        total_height = len(controls) * 25  # 25 pixels per line
-        pygame.draw.rect(surface, COLORS['WHITE'],
-                        (5, start_y, max_width + 2*self.padding,
-                         total_height + 2*self.padding))
-        
-        # Draw all text
-        for i, text_surface in enumerate(surfaces):
-            surface.blit(text_surface, (10, start_y + 5 + i * 25))
+        for control in controls:
+            if control:  # If not empty string
+                control_surf = self.font_small.render(control, True, COLORS['UI_TEXT'])
+                surface.blit(control_surf, (self.padding, current_y))
+                current_y += control_surf.get_height() + 5
+            else:  # Empty string means add extra spacing
+                current_y += 10
+
+        # Draw game state if not playing
+        if game_logic.state != GameState.PLAYING:
+            self._draw_game_state(surface, game_logic)
+
+    def _draw_section_header(self, text, surface, y):
+        """Helper to draw section headers with consistent styling"""
+        pygame.draw.line(surface, COLORS['GRID'], 
+                        (self.padding, y), 
+                        (UI_PANEL_WIDTH - self.padding, y), 1)
+        y += 5
+        header_surf = self.font.render(text, True, COLORS['UI_HEADER'])
+        surface.blit(header_surf, (self.padding, y))
+        y += header_surf.get_height() + 5
+        pygame.draw.line(surface, COLORS['GRID'], 
+                        (self.padding, y), 
+                        (UI_PANEL_WIDTH - self.padding, y), 1)
+        return y + self.padding
 
     def _draw_game_state(self, surface, game_logic):
-        """Draw game state message"""
+        """Draw game state message in the center of the game area"""
         state_text = f"Game {game_logic.state.value}! Press R to restart"
-        state_surface = self.font.render(state_text, True, COLORS['BLACK'])
+        state_surf = self.font_large.render(state_text, True, COLORS['BLACK'])
         
-        x = surface.get_width() // 2 - state_surface.get_width() // 2
-        y = surface.get_height() // 2 - state_surface.get_height() // 2
+        # Calculate position to center on game area, not including UI panel
+        game_area_center_x = UI_PANEL_WIDTH + (surface.get_width() - UI_PANEL_WIDTH) // 2
+        game_area_center_y = surface.get_height() // 2
         
-        pygame.draw.rect(surface, COLORS['WHITE'],
-                        (x - self.padding, y - self.padding,
-                         state_surface.get_width() + 2*self.padding,
-                         state_surface.get_height() + 2*self.padding))
-        surface.blit(state_surface, (x, y))
+        # Create background rectangle
+        rect_width = state_surf.get_width() + self.padding * 2
+        rect_height = state_surf.get_height() + self.padding * 2
+        rect = pygame.Rect(
+            game_area_center_x - rect_width // 2,
+            game_area_center_y - rect_height // 2,
+            rect_width,
+            rect_height
+        )
+        
+        # Draw background and text
+        pygame.draw.rect(surface, COLORS['WHITE'], rect)
+        surface.blit(state_surf, (
+            game_area_center_x - state_surf.get_width() // 2,
+            game_area_center_y - state_surf.get_height() // 2
+        ))
