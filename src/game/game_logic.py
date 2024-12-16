@@ -9,9 +9,8 @@ class GameLogic:
         self.time_remaining = TIME_LIMIT * FPS
         self.score = 0
         self.map_size = map_size
-        self.font = pygame.font.Font(None, 36)
         self.moves_made = 0
-        self.optimal_path_length = 13  # Matches Map.OPTIMAL_PATH_LENGTH
+        self.optimal_path_length = 13
 
     def update(self):
         """Updates game state including time"""
@@ -34,39 +33,6 @@ class GameLogic:
         self.time_remaining = TIME_LIMIT * FPS
         self.score = 0
         self.moves_made = 0
-
-    def draw_ui(self, surface):
-        """Draws UI elements including time, score and game state"""
-        padding = 5
-        
-        # Draw time
-        time_text = f"Time: {self.time_remaining // FPS}"
-        color = COLORS['TIMER_WARNING'] if self.time_remaining < 10 * FPS else COLORS['BLACK']
-        time_surface = self.font.render(time_text, True, color)
-        pygame.draw.rect(surface, COLORS['WHITE'], 
-                        (5, 5, time_surface.get_width() + 2*padding, 
-                         time_surface.get_height() + 2*padding))
-        surface.blit(time_surface, (10, 10))
-
-        # Draw score and moves
-        score_text = f"Score: {self.score} | Moves: {self.moves_made}"
-        score_surface = self.font.render(score_text, True, COLORS['BLACK'])
-        pygame.draw.rect(surface, COLORS['WHITE'],
-                        (5, 45, score_surface.get_width() + 2*padding,
-                         score_surface.get_height() + 2*padding))
-        surface.blit(score_surface, (10, 50))
-
-        # Draw game state
-        if self.state != GameState.PLAYING:
-            state_text = f"Game {self.state.value}! Press R to restart"
-            state_surface = self.font.render(state_text, True, COLORS['BLACK'])
-            x = surface.get_width() // 2 - state_surface.get_width() // 2
-            y = surface.get_height() // 2 - state_surface.get_height() // 2
-            pygame.draw.rect(surface, COLORS['WHITE'],
-                           (x - padding, y - padding,
-                            state_surface.get_width() + 2*padding,
-                            state_surface.get_height() + 2*padding))
-            surface.blit(state_surface, (x, y))
 
     def calculate_reward(self, old_pos, new_pos, goal_pos):
         """Calculates reward for an action"""

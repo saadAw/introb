@@ -10,7 +10,7 @@ Dieses Projekt dient als Framework für die Simulation von Algorithmen in einer 
 1. Installiere die Abhängigkeiten:
 pip install -r requirements.txt
 2. Starte die Simulation:
-python src/main.py
+python main.py
 
 ## Struktur
 - **src/**: Der Quellcode des Projekts.
