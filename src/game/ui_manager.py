@@ -56,10 +56,12 @@ class UIManager:
         algorithm_controls = [      
             (AlgorithmType.MANUAL, "1: Manual Mode", COLORS['PATH_MANUAL']),      
             (AlgorithmType.ASTAR, "2: A* Algorithm", COLORS['PATH_ASTAR']),      
-            (AlgorithmType.DIJKSTRA, "3: Dijkstra Algorithm", COLORS['PATH_DIJKSTRA']),      
-            (AlgorithmType.QL, "4: Q-Learning", COLORS['PATH_QL']),      
-            (AlgorithmType.DQN, "5: Deep Q-Learning", COLORS['PATH_DQN'])      
-        ]      
+            (AlgorithmType.DIJKSTRA, "3: Dijkstra Algorithm", COLORS['PATH_DIJKSTRA']),
+            (AlgorithmType.GBFS, "4: Greedy Best-First Search", COLORS['PATH_GBFS']),
+            (AlgorithmType.BFS, "5: Breadth-First Search", COLORS['PATH_BFS']),      
+            (AlgorithmType.QL, "6: Q-Learning", COLORS['PATH_QL']),      
+            (AlgorithmType.DQN, "7: Deep Q-Learning", COLORS['PATH_DQN'])      
+        ]     
 
         for algo, text, color in algorithm_controls:      
             # Farbkreis für jeden Algorithmus  

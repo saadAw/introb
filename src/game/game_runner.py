@@ -17,6 +17,8 @@ from src.algorithms.pathfinding.dijkstra import DijkstraPathfinder
 from src.algorithms.reinforcement.deep_q_learning import DQNAgent
 from src.algorithms.pathfinding.astar import AStarPathfinder
 from src.algorithms.reinforcement.q_learning import QLearningPathfinder
+from src.algorithms.pathfinding.greedy_best_first import GreedyBestFirstPathfinder
+from src.algorithms.pathfinding.breadth_first import BFSPathfinder
 
 from src.config.types import AlgorithmType
 
@@ -132,6 +134,8 @@ class GameRunner:
                 AlgorithmType.ASTAR: lambda: AStarPathfinder(self.game_map),
                 AlgorithmType.QL: lambda: QLearningPathfinder(self.game_map),
                 AlgorithmType.DQN: lambda: DQNAgent(self.game_map),
+                AlgorithmType.GBFS: lambda: GreedyBestFirstPathfinder(self.game_map),
+                AlgorithmType.BFS: lambda: BFSPathfinder(self.game_map),
             }
         except Exception as e:
             print(f"Error setting up algorithms: {e}")
@@ -174,9 +178,11 @@ class GameRunner:
         algorithm_map = {  
             pygame.K_1: (AlgorithmType.MANUAL, None),  
             pygame.K_2: (AlgorithmType.ASTAR, self.pathfinders.get(AlgorithmType.ASTAR)),  
-            pygame.K_3: (AlgorithmType.DIJKSTRA, self.pathfinders.get(AlgorithmType.DIJKSTRA)),  
-            pygame.K_4: (AlgorithmType.QL, self.pathfinders.get(AlgorithmType.QL)),  
-            pygame.K_5: (AlgorithmType.DQN, self.pathfinders.get(AlgorithmType.DQN))  
+            pygame.K_3: (AlgorithmType.DIJKSTRA, self.pathfinders.get(AlgorithmType.DIJKSTRA)),
+            pygame.K_4: (AlgorithmType.GBFS, self.pathfinders.get(AlgorithmType.GBFS)),
+            pygame.K_5: (AlgorithmType.BFS, self.pathfinders.get(AlgorithmType.BFS)),              
+            pygame.K_6: (AlgorithmType.QL, self.pathfinders.get(AlgorithmType.QL)),  
+            pygame.K_7: (AlgorithmType.DQN, self.pathfinders.get(AlgorithmType.DQN))  
         }  
 
         if key in algorithm_map:  

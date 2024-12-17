@@ -17,8 +17,7 @@ class Maze:
     """
 
     def __init__(self, size_x, size_y):
-
-        self.screen = None  # if this is set to a display surface, maze generation will be shown in a window
+        self.screen = None
         self.screen_size = None
         self.screen_block_size = None
         self.screen_block_offset = None
@@ -26,28 +25,25 @@ class Maze:
         self.clock = pygame.time.Clock()
         self.slow_mode = False
         self.running = True
-        self.path_density = 0.8
-
-        # initialize an array of walls filled with ones, data "not visited" + if exists for 2 walls (down and right) per cell.
+        self.path_density = 0.8  # Increased default path density
+        
+        # Initialize walls array
         self.wall_size = np.array([size_y, size_x], dtype=np.int16)
-        # add top, bottom, left, and right (ie. + 2 and + 2) to array size so can later work without checking going over its boundaries.
         self.walls = np.ones((self.wall_size[0] + 2, self.wall_size[1] + 2, 3), dtype=np.byte)
-        # mark edges as "unusable" (-1)
         self.walls[:, 0, 0] = -1
         self.walls[:, self.wall_size[1] + 1, 0] = -1
         self.walls[0, :, 0] = -1
         self.walls[self.wall_size[0] + 1, :, 0] = -1
-
-        # initialize an array of block data - each passage (0) and wall (1) is a block
+        
+        # Initialize blocks array
         self.block_size = np.array([size_y * 2 + 1, size_x * 2 + 1], dtype=np.int16)
         self.blocks = np.ones((self.block_size[0], self.block_size[1]), dtype=np.byte)
         
-                
     def set_path_density(self, density):
         self.path_density = max(0.0, min(1.0, density))
 
     def should_remove_wall(self, cell, direction):
-        """Check if removing a wall would create a better maze structure"""
+        """Enhanced wall removal logic for more paths"""
         y, x = cell
         if direction == 1:  # down wall
             next_cell = (y + 1, x)
@@ -58,17 +54,17 @@ class Maze:
         next_connections = self.count_connections(next_cell)
         
         # Allow more connections while preventing excessive openness
-        if current_connections >= 4 or next_connections >= 4:
+        if current_connections >= 5 or next_connections >= 5:  # Increased from 4 to 5
             return False
             
         # Higher base probability for wall removal
-        base_prob = min(1.0, self.path_density * 1.8)
+        base_prob = min(1.0, self.path_density * 2.0)  # Increased multiplier
         
-        # Adjusted probability based on existing connections
-        if current_connections + next_connections >= 5:
-            return random.random() < 0.3
-        elif current_connections + next_connections >= 3:
-            return random.random() < base_prob * 0.8
+        # More permissive probability adjustments
+        if current_connections + next_connections >= 6:  # Increased threshold
+            return random.random() < 0.4  # Increased probability
+        elif current_connections + next_connections >= 4:
+            return random.random() < base_prob * 0.9  # Increased multiplier
         else:
             return random.random() < base_prob
     
@@ -276,7 +272,7 @@ if __name__ == '__main__':
         # Create and configure maze
         maze = Maze(rect[2] // (block_size * 2) - 1, rect[3] // (block_size * 2) - 1)
         maze.screen = screen
-        maze.set_path_density(0.7)  # Set desired path density
+        maze.set_path_density(0.8)  # Set desired path density
         
         screen.fill((0, 0, 0))
         maze.screen_size = np.asarray(disp_size)

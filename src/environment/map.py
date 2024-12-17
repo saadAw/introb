@@ -12,9 +12,12 @@ class Map:
     ALGORITHM_COLORS = {    
         AlgorithmType.MANUAL: COLORS['PATH_MANUAL'],    
         AlgorithmType.ASTAR: COLORS['PATH_ASTAR'],    
-        AlgorithmType.DIJKSTRA: COLORS['PATH_DIJKSTRA'],    
+        AlgorithmType.DIJKSTRA: COLORS['PATH_DIJKSTRA'],
+        AlgorithmType.GBFS: COLORS['PATH_GBFS'],
+        AlgorithmType.BFS: COLORS['PATH_BFS'],
         AlgorithmType.QL: COLORS['PATH_QL'],    
         AlgorithmType.DQN: COLORS['PATH_DQN']    
+ 
     }    
     PATH_SCALE = 0.6  # 60% der Zellgröße    
 
