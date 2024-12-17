@@ -167,7 +167,7 @@ class GameRunner:
 
     def _handle_algorithm_selection(self, key):  
         """Handle algorithm selection based on key press"""  
-        if key not in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5]:  
+        if key not in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_6, pygame.K_7]:  
             return  
 
         # Clear previous algorithm path  
@@ -196,7 +196,7 @@ class GameRunner:
                 self.current_pathfinder.train(  
                     start=(self.robot.x, self.robot.y),  
                     goal=self.game_map.goal_pos,  
-                    episodes=1000  # You can adjust this  
+                    episodes=1000  
                 )  
                 print("Training completed!")  
 
