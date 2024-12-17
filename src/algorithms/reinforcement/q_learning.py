@@ -12,7 +12,7 @@ class QLearningPathfinder:
         'LEARNING_RATE_MIN': 0.01,       # Minimum learning rate
         'DISCOUNT_FACTOR': 0.95,         # Future reward discount
         'EPSILON_START': 1.0,            # Initial exploration rate
-        'EPSILON_MIN': 0.01,             # Minimum exploration rate
+        'EPSILON_MIN': 0.001,             # Minimum exploration rate
         'EPSILON_DECAY': 0.995,          # Exploration decay rate
 
         # Memory and tracking
@@ -21,11 +21,11 @@ class QLearningPathfinder:
         'REPLAY_BATCH_SIZE': 32,          # Batch size for experience replay
 
         # Reward structure
-        'REWARD_GOAL': 150.0,            # Reward for reaching goal
-        'REWARD_WALL': -5.0,             # Penalty for hitting wall
-        'REWARD_LOOP': -5.0,             # Penalty for revisiting states
+        'REWARD_GOAL': 100.0,            # Reward for reaching goal
+        'REWARD_WALL': -10.0,             # Penalty for hitting wall
+        'REWARD_LOOP': -10.0,             # Penalty for revisiting states
         'REWARD_CLOSER': 0.5,            # Reward for moving closer to goal
-        'REWARD_FARTHER': -1,          # Penalty for moving away from goal
+        'REWARD_FARTHER': -0.5,          # Penalty for moving away from goal
         'EXPLORATION_BONUS_FACTOR': 1,  # Factor for exploration bonus
 
         # Training settings
