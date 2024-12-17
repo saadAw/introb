@@ -167,7 +167,7 @@ class GameRunner:
 
     def _handle_algorithm_selection(self, key):  
         """Handle algorithm selection based on key press"""  
-        if key not in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_6, pygame.K_7]:  
+        if key not in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_6, pygame.K_7, pygame.K_8]:  
             return  
 
         # Clear previous algorithm path  
@@ -190,20 +190,21 @@ class GameRunner:
             self.current_algorithm = algo_type  
             self.current_pathfinder = pathfinder_creator() if pathfinder_creator else None  
 
-            # Train Q-learning if selected  
-            if self.current_algorithm == AlgorithmType.QL and self.current_pathfinder:  
-                print("Training Q-Learning agent...")  
-                self.current_pathfinder.train(  
-                    start=(self.robot.x, self.robot.y),  
-                    goal=self.game_map.goal_pos,  
-                    episodes=1000  
-                )  
-                print("Training completed!")  
+            # Train reinforcement learning agents if selected
+            if self.current_algorithm in [AlgorithmType.QL, AlgorithmType.SARSA] and self.current_pathfinder:
+                algorithm_name = "Q-Learning" if self.current_algorithm == AlgorithmType.QL else "SARSA"
+                print(f"Training {algorithm_name} agent...")
+                
+                self.current_pathfinder.train(
+                    start=(self.robot.x, self.robot.y),
+                    goal=self.game_map.goal_pos,
+                )
+                print(f"{algorithm_name} training completed!")
 
             if self.current_algorithm:  
                 self.game_logic.set_algorithm(self.current_algorithm)  
                 self.game_logic.state = GameState.PLAYING
-            
+                        
     def handle_input(self):
         """Handle input based on current algorithm"""
         try:
