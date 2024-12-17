@@ -16,6 +16,7 @@ from src.config.constants import (
 from src.algorithms.pathfinding.dijkstra import DijkstraPathfinder
 from src.algorithms.reinforcement.deep_q_learning import DQNAgent
 from src.algorithms.pathfinding.astar import AStarPathfinder
+from src.algorithms.reinforcement.q_learning import QLearningPathfinder
 
 from src.config.types import AlgorithmType
 
@@ -129,8 +130,7 @@ class GameRunner:
             self.pathfinders = {
                 AlgorithmType.DIJKSTRA: lambda: DijkstraPathfinder(self.game_map),
                 AlgorithmType.ASTAR: lambda: AStarPathfinder(self.game_map),
-                # Add other algorithms as they're implemented
-                # AlgorithmType.QL: lambda: QLAgent(self.game_map),
+                AlgorithmType.QL: lambda: QLearningPathfinder(self.game_map),
                 AlgorithmType.DQN: lambda: DQNAgent(self.game_map),
             }
         except Exception as e:
@@ -166,11 +166,11 @@ class GameRunner:
         if key not in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5]:  
             return  
 
-        # Wenn gleicher Algorithmus gewählt wird, lösche seinen Pfad  
+        # Clear previous algorithm path  
         if self.current_algorithm:  
             self.game_map.clear_algorithm_path(self.current_algorithm)  
 
-        # Dictionary für Algorithmus-Zuordnung  
+        # Dictionary for algorithm mapping  
         algorithm_map = {  
             pygame.K_1: (AlgorithmType.MANUAL, None),  
             pygame.K_2: (AlgorithmType.ASTAR, self.pathfinders.get(AlgorithmType.ASTAR)),  
@@ -183,6 +183,16 @@ class GameRunner:
             algo_type, pathfinder_creator = algorithm_map[key]  
             self.current_algorithm = algo_type  
             self.current_pathfinder = pathfinder_creator() if pathfinder_creator else None  
+
+            # Train Q-learning if selected  
+            if self.current_algorithm == AlgorithmType.QL and self.current_pathfinder:  
+                print("Training Q-Learning agent...")  
+                self.current_pathfinder.train(  
+                    start=(self.robot.x, self.robot.y),  
+                    goal=self.game_map.goal_pos,  
+                    episodes=1000  # You can adjust this  
+                )  
+                print("Training completed!")  
 
             if self.current_algorithm:  
                 self.game_logic.set_algorithm(self.current_algorithm)  
