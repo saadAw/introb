@@ -6,6 +6,7 @@ from src.environment.map import Map
 from src.environment.robot import Robot
 from src.game.game_logic import GameLogic
 from src.game.ui_manager import UIManager
+from src.config.types import AlgorithmType
 from src.config.constants import (
     GameState, 
     FPS, 
@@ -14,13 +15,12 @@ from src.config.constants import (
     calculate_dimensions
 )
 from src.algorithms.pathfinding.dijkstra import DijkstraPathfinder
-from src.algorithms.reinforcement.deep_q_learning import DQNAgent
 from src.algorithms.pathfinding.astar import AStarPathfinder
-from src.algorithms.reinforcement.q_learning import QLearningPathfinder
 from src.algorithms.pathfinding.greedy_best_first import GreedyBestFirstPathfinder
 from src.algorithms.pathfinding.breadth_first import BFSPathfinder
+from src.algorithms.reinforcement.q_learning import QLearningPathfinder
+from src.algorithms.reinforcement.sarsa import SARSAPathfinder
 
-from src.config.types import AlgorithmType
 
 class GameRunner:
     """Main game runner class that handles game initialization and main loop"""
@@ -132,10 +132,10 @@ class GameRunner:
             self.pathfinders = {
                 AlgorithmType.DIJKSTRA: lambda: DijkstraPathfinder(self.game_map),
                 AlgorithmType.ASTAR: lambda: AStarPathfinder(self.game_map),
-                AlgorithmType.QL: lambda: QLearningPathfinder(self.game_map),
-                AlgorithmType.DQN: lambda: DQNAgent(self.game_map),
                 AlgorithmType.GBFS: lambda: GreedyBestFirstPathfinder(self.game_map),
                 AlgorithmType.BFS: lambda: BFSPathfinder(self.game_map),
+                AlgorithmType.QL: lambda: QLearningPathfinder(self.game_map),
+                AlgorithmType.SARSA: lambda: SARSAPathfinder(self.game_map),
             }
         except Exception as e:
             print(f"Error setting up algorithms: {e}")
@@ -182,7 +182,7 @@ class GameRunner:
             pygame.K_4: (AlgorithmType.GBFS, self.pathfinders.get(AlgorithmType.GBFS)),
             pygame.K_5: (AlgorithmType.BFS, self.pathfinders.get(AlgorithmType.BFS)),              
             pygame.K_6: (AlgorithmType.QL, self.pathfinders.get(AlgorithmType.QL)),  
-            pygame.K_7: (AlgorithmType.DQN, self.pathfinders.get(AlgorithmType.DQN))  
+            pygame.K_7: (AlgorithmType.SARSA, self.pathfinders.get(AlgorithmType.SARSA))  
         }  
 
         if key in algorithm_map:  

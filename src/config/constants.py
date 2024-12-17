@@ -78,4 +78,5 @@ COLORS = {
     'PATH_BFS': (30, 144, 255),        # Dodger Blue
     'PATH_QL': (0, 191, 255),          # Light Blue
     'PATH_DQN': (50, 205, 50),         # Green
+    'PATH_SARSA': (255, 69, 0),        # Red-Orange
 }

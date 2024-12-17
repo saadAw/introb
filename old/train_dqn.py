@@ -14,7 +14,7 @@ import time
 from src.environment.map import Map
 from src.game.game_logic import GameLogic
 from src.config.constants import GameState
-from src.algorithms.reinforcement.deep_q_learning import DQNAgent
+from old.deep_q_learning import DQNAgent
 
 class FastEnvironment:
     """A stripped-down version of the environment for fast training"""

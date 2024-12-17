@@ -16,7 +16,7 @@ class Map:
         AlgorithmType.GBFS: COLORS['PATH_GBFS'],
         AlgorithmType.BFS: COLORS['PATH_BFS'],
         AlgorithmType.QL: COLORS['PATH_QL'],    
-        AlgorithmType.DQN: COLORS['PATH_DQN']    
+        AlgorithmType.SARSA: COLORS['PATH_SARSA'],  
  
     }    
     PATH_SCALE = 0.6  # 60% der Zellgröße    
@@ -55,9 +55,11 @@ class Map:
         self.algorithm_paths = {  
             AlgorithmType.MANUAL: set(),  
             AlgorithmType.ASTAR: set(),  
-            AlgorithmType.DIJKSTRA: set(),  
+            AlgorithmType.DIJKSTRA: set(),
+            AlgorithmType.GBFS: set(),
+            AlgorithmType.BFS: set(), 
             AlgorithmType.QL: set(),  
-            AlgorithmType.DQN: set()  
+            AlgorithmType.SARSA: set(),
         }
 
         self.path_grid = {}      # Speichert {(x,y): AlgorithmType} für besetzte Felder  

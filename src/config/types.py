@@ -9,3 +9,4 @@ class AlgorithmType(Enum):
     BFS = "Breadth First"
     QL = "Q-Learning"
     DQN = "Deep Q-Learning"
+    SARSA = "SARSA"
