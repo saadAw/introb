@@ -1,14 +1,23 @@
 import pygame  
-from typing import Tuple  
+from typing import Tuple 
+from enum import Enum 
 
 from src.config.constants import MapSymbols, COLORS, calculate_dimensions  
 from src.environment.mazes.maze_data import LAYOUT  
 from src.config.types import AlgorithmType
+from src.environment.mazes.maze_data import DIAGONAL_MAZE, SNAKE_MAZE, OPEN_MAZE, BOTTLENECK_MAZE
+
+class TestScenario(Enum):
+    DIAGONAL = "diagonal"          # Opposite corners (current setup)
+    SNAKE = "snake"               # Through winding path
+    OPEN = "open"                 # Across open area
+    BOTTLENECK = "bottleneck"     # Through narrow passage
+    RANDOM = "random"             # Random valid positions
+
 
 class Map:  
     """Represents the game map with a single fixed layout"""    
 
-    # Klassenkonstanten am Anfang der Klasse definieren    
     ALGORITHM_COLORS = {    
         AlgorithmType.MANUAL: COLORS['PATH_MANUAL'],    
         AlgorithmType.ASTAR: COLORS['PATH_ASTAR'],    
@@ -19,58 +28,88 @@ class Map:
         AlgorithmType.SARSA: COLORS['PATH_SARSA'],  
  
     }    
-    PATH_SCALE = 0.6  # 60% der Zellgröße    
+    PATH_SCALE = 0.6    
 
     def __init__(self, width: int, height: int):
-        """Initialize map with given dimensions"""
-        # Get maze dimensions from LAYOUT
-        self.maze_height = len(LAYOUT)
-        self.maze_width = len(LAYOUT[0]) if LAYOUT else 0
+        self.current_layout = DIAGONAL_MAZE  # Default layout
         
-        print(f"Maze dimensions: {self.maze_width}x{self.maze_height}")
+        # Get maze dimensions from current layout
+        self.maze_height = len(self.current_layout)
+        self.maze_width = len(self.current_layout[0]) if self.current_layout else 0
         
-        # Calculate appropriate dimensions
         dimensions = calculate_dimensions(self.maze_width, self.maze_height)
         
-        # Set class attributes
         self.width = dimensions['map_width']
         self.height = dimensions['map_height']
         self.cell_size = dimensions['cell_size']
         self.screen_width = self.width * self.cell_size
         self.screen_height = self.height * self.cell_size
         
-        # Set spawn and goal positions 
-        self.SPAWN_POS = (1, self.height - 2) # near bottom left
-        self.GOAL_POS = (self.width - 2, 1) # near top right
+        # Define test scenarios
+        self.test_scenarios = {
+            TestScenario.DIAGONAL: {
+                'spawn': (1, self.height - 2),
+                'goal': (self.width - 2, 1)
+            },
+            TestScenario.SNAKE: {
+                'spawn': (1, self.height // 2),
+                'goal': (self.width - 2, self.height // 2)
+            },
+            TestScenario.OPEN: {
+                'spawn': (self.width // 4, self.height // 2),
+                'goal': (3 * self.width // 4, self.height // 2)
+            },
+            TestScenario.BOTTLENECK: {
+                'spawn': (1, 1),
+                'goal': (self.width - 2, self.height - 2)
+            }
+        }
+        
+        # Start with diagonal scenario
+        self.current_scenario = TestScenario.DIAGONAL
+        spawn_pos = self.test_scenarios[self.current_scenario]['spawn']
+        goal_pos = self.test_scenarios[self.current_scenario]['goal']
+        
+        self.SPAWN_POS = spawn_pos
+        self.GOAL_POS = goal_pos
         self.OPTIMAL_PATH_LENGTH = max(self.width, self.height) * 2
         
-        # Initialize positions
+        # Rest of initialization...
         self.robot_pos = None
         self.goal_pos = None
-        
-        # Initialize the grid
         self.grid = [[MapSymbols.FREE for _ in range(self.width)] 
                     for _ in range(self.height)]
-        
-        self.algorithm_paths = {  
-            AlgorithmType.MANUAL: set(),  
-            AlgorithmType.ASTAR: set(),  
-            AlgorithmType.DIJKSTRA: set(),
-            AlgorithmType.GBFS: set(),
-            AlgorithmType.BFS: set(), 
-            AlgorithmType.QL: set(),  
-            AlgorithmType.SARSA: set(),
-        }
-
-        self.path_grid = {}      # Speichert {(x,y): AlgorithmType} für besetzte Felder  
-        self.paths = {}          # Speichert {AlgorithmType: set(positions)} für jeden Algorithmus
+        self.algorithm_paths = {algo_type: set() for algo_type in AlgorithmType}
+        self.path_grid = {}
+        self.paths = {}
         
         self.load_map()
 
+    def set_maze_layout(self, layout):
+        """Change the current maze layout"""
+        self.current_layout = layout
+        self.maze_height = len(self.current_layout)
+        self.maze_width = len(self.current_layout[0]) if self.current_layout else 0
+        
+        # Recalculate dimensions
+        dimensions = calculate_dimensions(self.maze_width, self.maze_height)
+        self.width = dimensions['map_width']
+        self.height = dimensions['map_height']
+        self.cell_size = dimensions['cell_size']
+        self.screen_width = self.width * self.cell_size
+        self.screen_height = self.height * self.cell_size
+        
+        # Clear all paths
+        for algo_type in AlgorithmType:
+            self.clear_algorithm_path(algo_type)
+            
+        # Reload map with new layout
+        self.load_map()
+
     def load_map(self) -> None:
-        """Load the fixed map layout"""
+        """Load the current map layout"""
         try:
-            for y, row in enumerate(LAYOUT):
+            for y, row in enumerate(self.current_layout):  # Use current_layout instead of LAYOUT
                 for x, cell in enumerate(row):
                     self.grid[y][x] = MapSymbols.OBSTACLE if cell == 1 else MapSymbols.FREE
             
@@ -88,6 +127,8 @@ class Map:
         except Exception as e:
             print(f"Error loading maze: {e}")
             raise
+
+
 
     def _find_valid_position(self, start_from_bottom=True) -> Tuple[int, int]:
         """Find a valid position in the maze"""

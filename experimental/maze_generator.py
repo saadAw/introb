@@ -389,7 +389,7 @@ class Maze:
 if __name__ == '__main__':
 
     # Try changing maze_type to 'snake', 'open', or 'bottleneck' and see the difference.
-    maze_type = 'snake'
+    maze_type = ''
     pygame.display.init()
     disp_size = (1080, 1080)
     rect = np.array([0, 0, disp_size[0], disp_size[1]])
