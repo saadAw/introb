@@ -1,24 +1,61 @@
 import pygame
-from src.game import metrics_manager
-from src.config.constants import COLORS, FPS, GameState, UI_PANEL_WIDTH, PADDING
+from typing import List, Dict, Any, Callable
+from src.config.constants import COLORS, FPS, GameState, UI_PANEL_WIDTH, PADDING, TIME_LIMIT
 from src.config.types import AlgorithmType
 
-class UIManager:  
-    def __init__(self):  
-        # Smaller font sizes
-        self.font_large = pygame.font.Font(None, 36)  # Reduced from 40
-        self.font = pygame.font.Font(None, 28)       # Reduced from 32
-        self.font_small = pygame.font.Font(None, 20) # Reduced from 24
-        self.metric_click_areas = []
-        self.padding = PADDING
+class UISection:
+    """Base class for UI sections"""
+    def __init__(self, name: str, font: pygame.font.Font, padding: int):
+        self.name = name
+        self.font = font
+        self.padding = padding
 
-    def _draw_section_header(self, text, surface, y):
-        """Helper to draw section headers with consistent styling"""
+    def render(self, surface: pygame.Surface, current_y: int) -> int:
+        """Render method to be implemented by child classes"""
+        raise NotImplementedError("Subclasses must implement render method")
+
+class AlgorithmSection(UISection):
+    """Section for displaying available algorithms"""
+    def __init__(self, name: str, font: pygame.font.Font, padding: int, 
+                 algorithms: List[tuple], current_algorithm: AlgorithmType, 
+                 used_algorithms: set):
+        super().__init__(name, font, padding)
+        self.algorithms = algorithms
+        self.current_algorithm = current_algorithm
+        self.used_algorithms = used_algorithms
+
+    def render(self, surface: pygame.Surface, current_y: int) -> int:
+        """Render algorithm section"""
+        # Draw section header
+        current_y = self._draw_section_header(surface, current_y)
+
+        for algo, text, color in self.algorithms:
+            # Draw color indicator
+            pygame.draw.circle(surface, color, (self.padding + 5, current_y + 7), 5)
+
+            # Determine text styling
+            if algo == self.current_algorithm:
+                text_color = COLORS['UI_HEADER']
+                text = f"> {text}"
+            elif algo in self.used_algorithms:
+                text_color = COLORS['UI_TEXT']
+            else:
+                text_color = COLORS['UI_TEXT']
+
+            # Render text
+            control_surf = pygame.font.Font(None, 24).render(text, True, text_color)
+            surface.blit(control_surf, (self.padding + 15, current_y))
+            current_y += control_surf.get_height() + 5
+
+        return current_y + self.padding
+
+    def _draw_section_header(self, surface: pygame.Surface, y: int) -> int:
+        """Draw section header with lines"""
         pygame.draw.line(surface, COLORS['GRID'], 
                         (self.padding, y), 
                         (UI_PANEL_WIDTH - self.padding, y), 1)
         y += 5
-        header_surf = self.font.render(text, True, COLORS['UI_HEADER'])
+        header_surf = self.font.render(self.name, True, COLORS['UI_HEADER'])
         surface.blit(header_surf, (self.padding, y))
         y += header_surf.get_height() + 5
         pygame.draw.line(surface, COLORS['GRID'], 
@@ -26,173 +63,169 @@ class UIManager:
                         (UI_PANEL_WIDTH - self.padding, y), 1)
         return y + self.padding
 
-    def _draw_game_state(self, surface, message):  
-        """Draw game state message in the center of the game area"""  
-        state_surf = self.font_large.render(message, True, COLORS['BLACK'])  
+class ControlsSection(UISection):
+    """Section for displaying game controls"""
+    def __init__(self, name: str, font: pygame.font.Font, padding: int, controls: List[str]):
+        super().__init__(name, font, padding)
+        self.controls = controls
 
-        # Calculate position to center on game area, not including UI panel  
-        game_area_center_x = UI_PANEL_WIDTH + (surface.get_width() - UI_PANEL_WIDTH) // 2  
-        game_area_center_y = surface.get_height() // 2  
-
-        # Create background rectangle  
-        rect_width = state_surf.get_width() + self.padding * 2  
-        rect_height = state_surf.get_height() + self.padding * 2  
-        rect = pygame.Rect(  
-            game_area_center_x - rect_width // 2,  
-            game_area_center_y - rect_height // 2,  
-            rect_width,  
-            rect_height  
-        )  
-
-        # Draw background and text  
-        pygame.draw.rect(surface, COLORS['WHITE'], rect)  
-        surface.blit(state_surf, (  
-            game_area_center_x - state_surf.get_width() // 2,  
-            game_area_center_y - state_surf.get_height() // 2  
-        ))
-
-    def draw_metrics_comparison(self, surface, metrics_manager):
-        """Draw simplified metrics comparison with clickable rows"""
-        current_y = surface.get_height() - 150  # Reduced height since we show less info
-
+    def render(self, surface: pygame.Surface, current_y: int) -> int:
+        """Render controls section"""
         # Draw section header
-        current_y = self._draw_section_header("Algorithm Metrics (Click for details)", surface, current_y)
+        current_y = self._draw_section_header(surface, current_y)
 
-        # Simplified table layout
-        headers = ["Algorithm", "Time(s)"]
-        col_width = (UI_PANEL_WIDTH - self.padding * 2) // len(headers)
+        for control in self.controls:
+            control_surf = self.font.render(control, True, COLORS['UI_TEXT'])
+            surface.blit(control_surf, (self.padding, current_y))
+            current_y += control_surf.get_height() + 5
 
-        # Draw headers
-        for i, header in enumerate(headers):
-            x = self.padding + i * col_width
-            header_surf = self.font_small.render(header, True, COLORS['UI_HEADER'])
-            surface.blit(header_surf, (x, current_y))
+        return current_y
 
-        current_y += self.font_small.get_height() + 2
+    def _draw_section_header(self, surface: pygame.Surface, y: int) -> int:
+        """Draw section header with lines"""
+        pygame.draw.line(surface, COLORS['GRID'], 
+                        (self.padding, y), 
+                        (UI_PANEL_WIDTH - self.padding, y), 1)
+        y += 5
+        header_surf = self.font.render(self.name, True, COLORS['UI_HEADER'])
+        surface.blit(header_surf, (self.padding, y))
+        y += header_surf.get_height() + 5
+        pygame.draw.line(surface, COLORS['GRID'], 
+                        (self.padding, y), 
+                        (UI_PANEL_WIDTH - self.padding, y), 1)
+        return y + self.padding
 
-        # Store clickable areas for each algorithm
-        self.metric_click_areas = []  # Add this as instance variable in __init__
+class UIManager:
+    """Handles all UI rendering and management with modular sections"""
+    def __init__(self):
+        self.fonts = {
+            'large': pygame.font.Font(None, 40),
+            'medium': pygame.font.Font(None, 32),
+            'small': pygame.font.Font(None, 24)
+        }
+        self.padding = PADDING
+        self.sections: List[UISection] = []
 
-        # Draw metrics rows
-        for algo_type in AlgorithmType:
-            metrics = metrics_manager.get_average_metrics(algo_type)
-            if metrics is None:
-                continue
+    def add_section(self, section: UISection):
+        """Add a new UI section"""
+        self.sections.append(section)
 
-            # Create clickable area for this row
-            row_rect = pygame.Rect(
-                self.padding, 
-                current_y, 
-                UI_PANEL_WIDTH - 2 * self.padding,
-                self.font_small.get_height()
+    def clear_sections(self):
+        """Clear all existing sections"""
+        self.sections.clear()
+
+    def draw_game_ui(self, surface, game_logic, current_algorithm):
+        """Draw game UI with comprehensive information"""
+        try:
+            # Reset drawing position
+            y_offset = PADDING
+
+            # Title
+            title_text = self.fonts['large'].render("Robot Navigation", True, COLORS['UI_HEADER'])
+            surface.blit(title_text, (PADDING, y_offset))
+            y_offset += title_text.get_height() + PADDING
+
+            # Algorithm Selection Guide
+            if game_logic.state_manager.state == GameState.WAITING:
+                guide_text = self.fonts['medium'].render("Select Algorithm:", True, COLORS['UI_HEADER'])
+                surface.blit(guide_text, (PADDING, y_offset))
+                y_offset += guide_text.get_height() + 10
+
+                algo_keys = [
+                    "1: Manual", 
+                    "2: A*", 
+                    "3: Dijkstra", 
+                    "4: GBFS", 
+                    "5: BFS", 
+                    "6: Q-Learning", 
+                    "7: SARSA"
+                ]
+                for key_text in algo_keys:
+                    key_render = self.fonts['small'].render(key_text, True, COLORS['UI_TEXT'])
+                    surface.blit(key_render, (PADDING, y_offset))
+                    y_offset += key_render.get_height() + 5
+                return
+
+            # Algorithm Section
+            algo_title = self.fonts['medium'].render("Algorithm:", True, COLORS['UI_HEADER'])
+            surface.blit(algo_title, (PADDING, y_offset))
+            y_offset += algo_title.get_height() + 5
+
+            algo_name = self.fonts['small'].render(
+                current_algorithm.name if current_algorithm else "Not Selected", 
+                True, 
+                COLORS['PATH_ASTAR']
             )
-            self.metric_click_areas.append((row_rect, algo_type))
+            surface.blit(algo_name, (PADDING, y_offset))
+            y_offset += algo_name.get_height() + PADDING
 
-            # Highlight row if mouse is hovering over it
-            mouse_pos = pygame.mouse.get_pos()
-            if row_rect.collidepoint(mouse_pos):
-                pygame.draw.rect(surface, COLORS['UI_HIGHLIGHT'], row_rect, 1)
+            # Game State Section
+            state_title = self.fonts['medium'].render("Game State:", True, COLORS['UI_HEADER'])
+            surface.blit(state_title, (PADDING, y_offset))
+            y_offset += state_title.get_height() + 5
 
-            # Draw color indicator
-            algo_color = COLORS[f'PATH_{algo_type.name}']
-            pygame.draw.circle(surface, algo_color, 
-                            (self.padding + 3, current_y + 5), 2)
+            state_text = self.fonts['small'].render(
+                game_logic.state_manager.state.name, 
+                True, 
+                {
+                    GameState.WAITING: COLORS['PATH_MANUAL'],
+                    GameState.PLAYING: COLORS['GREEN'],
+                    GameState.WIN: COLORS['PATH_DQN'],
+                    GameState.LOSE: COLORS['RED']
+                }.get(game_logic.state_manager.state, COLORS['UI_TEXT'])
+            )
+            surface.blit(state_text, (PADDING, y_offset))
+            y_offset += state_text.get_height() + PADDING
 
-            # Draw simplified values
-            values = [
-                algo_type.value[:8],  # Algorithm name
-                f"{metrics.execution_time:.2f}"  # Time only
-            ]
+            # Score Section
+            score_title = self.fonts['medium'].render("Score:", True, COLORS['UI_HEADER'])
+            surface.blit(score_title, (PADDING, y_offset))
+            y_offset += score_title.get_height() + 5
 
-            for i, value in enumerate(values):
-                x = self.padding + i * col_width
-                if i == 0:  # Add offset for first column to account for color indicator
-                    x += 8
-                value_surf = self.font_small.render(value, True, COLORS['UI_TEXT'])
-                surface.blit(value_surf, (x, current_y))
+            score_text = self.fonts['small'].render(
+                str(game_logic.score), 
+                True, 
+                COLORS['RED']
+            )
+            surface.blit(score_text, (PADDING, y_offset))
+            y_offset += score_text.get_height() + PADDING
 
-            current_y += self.font_small.get_height() + 2
+            # Time Remaining Section
+            time_title = self.fonts['medium'].render("Time:", True, COLORS['UI_HEADER'])  
+            surface.blit(time_title, (PADDING, y_offset))  
+            y_offset += time_title.get_height() + 5  
 
-    def draw_game_ui(self, surface, game_logic, current_algorithm, metrics_manager=None):    
-        """Draw all UI elements in the left panel"""    
-        # Draw UI panel background    
-        panel_rect = pygame.Rect(0, 0, UI_PANEL_WIDTH, surface.get_height())    
-        pygame.draw.rect(surface, COLORS['UI_BACKGROUND'], panel_rect)    
-        pygame.draw.line(surface, COLORS['GRID'],     
-                        (UI_PANEL_WIDTH, 0),     
-                        (UI_PANEL_WIDTH, surface.get_height()), 2)    
+            time_remaining = game_logic.time_manager.remaining_seconds  
+            time_color = (  
+                COLORS['RED'] if time_remaining < 30 else   
+                COLORS['TIMER_WARNING'] if time_remaining < 60 else   
+                COLORS['UI_TEXT']  
+            )  
 
-        current_y = self.padding    
+            time_text = self.fonts['small'].render(  
+                f"{time_remaining} seconds",   
+                True,   
+                time_color  
+            )  
+            surface.blit(time_text, (PADDING, y_offset))  
+            y_offset += time_text.get_height() + PADDING
 
-        # Game title with reduced padding
-        title_surf = self.font_large.render("Robot Navigation", True, COLORS['UI_HEADER'])    
-        surface.blit(title_surf, (self.padding, current_y))    
-        current_y += title_surf.get_height() + self.padding // 2    
+            # Game Over / Restart Hints
+            if game_logic.state_manager.state in [GameState.WIN, GameState.LOSE]:
+                game_over_text = self.fonts['medium'].render(
+                    "Game Over!", 
+                    True, 
+                    COLORS['RED']
+                )
+                surface.blit(game_over_text, (PADDING, y_offset))
+                y_offset += game_over_text.get_height() + 10
 
-        # Current mode with reduced padding   
-        current_y = self._draw_section_header("Current Mode", surface, current_y)    
-        mode_surf = self.font.render(current_algorithm.value, True, COLORS['UI_TEXT'])    
-        surface.blit(mode_surf, (self.padding, current_y))    
-        current_y += mode_surf.get_height() + self.padding    
+                restart_text = self.fonts['small'].render(
+                    "Press 'R' to Restart", 
+                    True, 
+                    COLORS['UI_TEXT']
+                )
+                surface.blit(restart_text, (PADDING, y_offset))
 
-        # Statistics section with reduced spacing
-        if game_logic.state != GameState.WAITING:    
-            current_y = self._draw_section_header("Statistics", surface, current_y)    
-
-            stats = [
-                (f"Time: {game_logic.time_remaining // FPS}s", 
-                 COLORS['TIMER_WARNING'] if game_logic.time_remaining < 10 * FPS else COLORS['UI_TEXT']),
-                (f"Score: {game_logic.score}", COLORS['UI_TEXT']),
-                (f"Moves: {game_logic.moves_made}", COLORS['UI_TEXT'])
-            ]
-
-            for text, color in stats:
-                stat_surf = self.font_small.render(text, True, color)
-                surface.blit(stat_surf, (self.padding, current_y))
-                current_y += stat_surf.get_height() + 3  # Reduced spacing
-
-        # Algorithms section with reduced spacing
-        current_y = self._draw_section_header("Available Algorithms", surface, current_y)      
-        algorithm_controls = [      
-            (AlgorithmType.MANUAL, "1: Manual Mode", COLORS['PATH_MANUAL']),      
-            (AlgorithmType.ASTAR, "2: A* Algorithm", COLORS['PATH_ASTAR']),      
-            (AlgorithmType.DIJKSTRA, "3: Dijkstra Algorithm", COLORS['PATH_DIJKSTRA']),
-            (AlgorithmType.GBFS, "4: Greedy Best-First Search", COLORS['PATH_GBFS']),
-            (AlgorithmType.BFS, "5: Breadth-First Search", COLORS['PATH_BFS']),      
-            (AlgorithmType.QL, "6: Q-Learning", COLORS['PATH_QL']),      
-            (AlgorithmType.DQN, "7: SARSA", COLORS['PATH_SARSA'])      
-        ]     
-
-        for algo, text, color in algorithm_controls:      
-            pygame.draw.circle(surface, color, (self.padding + 5, current_y + 5), 3)  # Smaller circles
-
-            if algo == current_algorithm:      
-                text_color = COLORS['UI_HEADER']  
-                text = f"> {text}"
-            elif algo in game_logic.used_algorithms:      
-                text_color = COLORS['UI_TEXT']      
-            else:      
-                text_color = COLORS['UI_TEXT']      
-
-            control_surf = self.font_small.render(text, True, text_color)      
-            surface.blit(control_surf, (self.padding + 12, current_y))  # Reduced indent
-            current_y += control_surf.get_height() + 2  # Minimal spacing
-
-        # Controls section with minimal spacing
-        current_y = self._draw_section_header("Controls", surface, current_y)  
-        controls = ["Arrow Keys: Move", "R: Reset Game", "ESC: Quit"]  
-
-        for control in controls:  
-            control_surf = self.font_small.render(control, True, COLORS['UI_TEXT'])  
-            surface.blit(control_surf, (self.padding, current_y))  
-            current_y += control_surf.get_height() + 2  # Minimal spacing
-
-        # Draw game state message    
-        if game_logic.state == GameState.WAITING:    
-            self._draw_game_state(surface, "Select an algorithm to start!")    
-        elif game_logic.state != GameState.PLAYING:    
-            self._draw_game_state(surface, f"Game {game_logic.state.value}! Press R to restart")
-
-        # Add metrics comparison if game is not in WAITING state  
-        if game_logic.state != GameState.WAITING and metrics_manager:
-            self.draw_metrics_comparison(surface, metrics_manager)
+        except Exception as e:
+            print(f"Error in draw_game_ui: {e}")
