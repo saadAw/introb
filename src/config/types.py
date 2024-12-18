@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, auto
 
 class AlgorithmType(Enum):
     """Enum for different pathfinding algorithms"""
@@ -10,3 +10,9 @@ class AlgorithmType(Enum):
     QL = "Q-Learning"
     DQN = "Deep Q-Learning"
     SARSA = "SARSA"
+    
+class TestScenario(Enum):
+    DIAGONAL = auto()
+    SNAKE = auto()
+    OPEN = auto()
+    BOTTLENECK = auto()

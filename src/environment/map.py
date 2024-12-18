@@ -4,18 +4,16 @@ from enum import Enum
 
 from src.config.constants import MapSymbols, COLORS, calculate_dimensions  
 from src.environment.mazes.maze_data import LAYOUT  
-from src.config.types import AlgorithmType
-from src.environment.mazes.maze_data import DIAGONAL_MAZE, SNAKE_MAZE, OPEN_MAZE, BOTTLENECK_MAZE
-
-class TestScenario(Enum):
-    DIAGONAL = "diagonal"          # Opposite corners (current setup)
-    SNAKE = "snake"               # Through winding path
-    OPEN = "open"                 # Across open area
-    BOTTLENECK = "bottleneck"     # Through narrow passage
-    RANDOM = "random"             # Random valid positions
+from src.config.types import AlgorithmType, TestScenario
+from src.environment.mazes.maze_data import (
+    DIAGONAL_MAZE,
+    SNAKE_MAZE,
+    OPEN_MAZE,
+    BOTTLENECK_MAZE
+)
 
 
-class Map:  
+class Map:
     """Represents the game map with a single fixed layout"""    
 
     ALGORITHM_COLORS = {    
@@ -26,12 +24,20 @@ class Map:
         AlgorithmType.BFS: COLORS['PATH_BFS'],
         AlgorithmType.QL: COLORS['PATH_QL'],    
         AlgorithmType.SARSA: COLORS['PATH_SARSA'],  
- 
     }    
     PATH_SCALE = 0.6    
 
     def __init__(self, width: int, height: int):
-        self.current_layout = DIAGONAL_MAZE  # Default layout
+        # Initialize maze layouts
+        self.maze_layouts = {
+            TestScenario.DIAGONAL: DIAGONAL_MAZE,
+            TestScenario.SNAKE: SNAKE_MAZE,
+            TestScenario.OPEN: OPEN_MAZE,
+            TestScenario.BOTTLENECK: BOTTLENECK_MAZE
+        }
+        
+        self.current_layout = self.maze_layouts[TestScenario.DIAGONAL]  # Default layout
+        self.current_scenario = TestScenario.DIAGONAL
         
         # Get maze dimensions from current layout
         self.maze_height = len(self.current_layout)
@@ -44,37 +50,33 @@ class Map:
         self.cell_size = dimensions['cell_size']
         self.screen_width = self.width * self.cell_size
         self.screen_height = self.height * self.cell_size
-        
-        # Define test scenarios
+
+        # Define consistent spawn and goal positions for all scenarios
         self.test_scenarios = {
             TestScenario.DIAGONAL: {
-                'spawn': (1, self.height - 2),
-                'goal': (self.width - 2, 1)
+                'spawn': (1, self.height - 2),  # Bottom left
+                'goal': (self.width - 2, 1)     # Top right
             },
             TestScenario.SNAKE: {
-                'spawn': (1, self.height // 2),
-                'goal': (self.width - 2, self.height // 2)
+                'spawn': (1, self.height - 2),  # Bottom left
+                'goal': (self.width - 2, 1)     # Top right
             },
             TestScenario.OPEN: {
-                'spawn': (self.width // 4, self.height // 2),
-                'goal': (3 * self.width // 4, self.height // 2)
+                'spawn': (1, self.height - 2),  # Bottom left
+                'goal': (self.width - 2, 1)     # Top right
             },
             TestScenario.BOTTLENECK: {
-                'spawn': (1, 1),
-                'goal': (self.width - 2, self.height - 2)
+                'spawn': (1, self.height - 2),  # Bottom left
+                'goal': (self.width - 2, 1)     # Top right
             }
         }
-        
-        # Start with diagonal scenario
-        self.current_scenario = TestScenario.DIAGONAL
-        spawn_pos = self.test_scenarios[self.current_scenario]['spawn']
-        goal_pos = self.test_scenarios[self.current_scenario]['goal']
-        
-        self.SPAWN_POS = spawn_pos
-        self.GOAL_POS = goal_pos
+
+        # Set initial spawn and goal positions
+        self.SPAWN_POS = self.test_scenarios[self.current_scenario]['spawn']
+        self.GOAL_POS = self.test_scenarios[self.current_scenario]['goal']
         self.OPTIMAL_PATH_LENGTH = max(self.width, self.height) * 2
         
-        # Rest of initialization...
+        # Initialize remaining attributes
         self.robot_pos = None
         self.goal_pos = None
         self.grid = [[MapSymbols.FREE for _ in range(self.width)] 
@@ -85,26 +87,21 @@ class Map:
         
         self.load_map()
 
-    def set_maze_layout(self, layout):
+    def change_maze(self, scenario: TestScenario):
         """Change the current maze layout"""
-        self.current_layout = layout
-        self.maze_height = len(self.current_layout)
-        self.maze_width = len(self.current_layout[0]) if self.current_layout else 0
-        
-        # Recalculate dimensions
-        dimensions = calculate_dimensions(self.maze_width, self.maze_height)
-        self.width = dimensions['map_width']
-        self.height = dimensions['map_height']
-        self.cell_size = dimensions['cell_size']
-        self.screen_width = self.width * self.cell_size
-        self.screen_height = self.height * self.cell_size
-        
-        # Clear all paths
-        for algo_type in AlgorithmType:
-            self.clear_algorithm_path(algo_type)
+        if scenario in self.maze_layouts:
+            self.current_layout = self.maze_layouts[scenario]
+            self.current_scenario = scenario
             
-        # Reload map with new layout
-        self.load_map()
+            # Update spawn and goal positions
+            self.SPAWN_POS = self.test_scenarios[scenario]['spawn']
+            self.GOAL_POS = self.test_scenarios[scenario]['goal']
+            
+            # Reload map with new layout
+            self.load_map()
+            return True
+        return False
+
 
     def load_map(self) -> None:
         """Load the current map layout"""
@@ -127,8 +124,6 @@ class Map:
         except Exception as e:
             print(f"Error loading maze: {e}")
             raise
-
-
 
     def _find_valid_position(self, start_from_bottom=True) -> Tuple[int, int]:
         """Find a valid position in the maze"""

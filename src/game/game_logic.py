@@ -1,7 +1,7 @@
 import pygame
 from typing import Tuple, Callable
 from src.config.constants import GameState, TIME_LIMIT, FPS, COLORS
-from src.config.types import AlgorithmType
+from src.config.types import AlgorithmType, TestScenario
 
 class GameStateManager:
     """Manages game state and transitions"""
@@ -142,17 +142,22 @@ class RewardCalculator:
         return -0.1  # Neutral movement
 
 class GameLogic:
-    """Comprehensive game logic manager"""
     def __init__(self, map_size: Tuple[int, int] = (10, 10), optimal_path_length: int = 13):
         # Composition over inheritance
         self.state_manager = GameStateManager()
         self.score_manager = ScoreManager(optimal_path_length)
-        self.time_manager = TimeManager(TIME_LIMIT)  # Use the TIME_LIMIT from constants
+        self.time_manager = TimeManager(TIME_LIMIT)
         self.algorithm_tracker = AlgorithmTracker()
+        self.current_maze = TestScenario.DIAGONAL  # Add this line
 
         self.map_size = map_size
         self.optimal_path_length = optimal_path_length
 
+    def set_maze_type(self, maze_type: TestScenario):
+        """Set current maze type"""
+        self.current_maze = maze_type
+        return self.current_maze
+        
     def update(self):  
         # Update time only when in PLAYING state  
         if self.state_manager.state == GameState.PLAYING:  

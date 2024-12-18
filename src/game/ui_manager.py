@@ -125,19 +125,38 @@ class UIManager:
             surface.blit(title_text, (PADDING, y_offset))
             y_offset += title_text.get_height() + PADDING
 
-            # Algorithm Selection Guide
+            # Selection Guide in WAITING state
             if game_logic.state_manager.state == GameState.WAITING:
+                # Maze Selection Guide
+                maze_guide_text = self.fonts['medium'].render("Select Maze:", True, COLORS['UI_HEADER'])
+                surface.blit(maze_guide_text, (PADDING, y_offset))
+                y_offset += maze_guide_text.get_height() + 10
+
+                maze_keys = [
+                    "F1: Diagonal Maze",
+                    "F2: Snake Maze",
+                    "F3: Open Maze",
+                    "F4: Bottleneck Maze"
+                ]
+                for key_text in maze_keys:
+                    key_render = self.fonts['small'].render(key_text, True, COLORS['UI_TEXT'])
+                    surface.blit(key_render, (PADDING, y_offset))
+                    y_offset += key_render.get_height() + 5
+
+                y_offset += PADDING  # Extra spacing between sections
+
+                # Algorithm Selection Guide
                 guide_text = self.fonts['medium'].render("Select Algorithm:", True, COLORS['UI_HEADER'])
                 surface.blit(guide_text, (PADDING, y_offset))
                 y_offset += guide_text.get_height() + 10
 
                 algo_keys = [
-                    "1: Manual", 
-                    "2: A*", 
-                    "3: Dijkstra", 
-                    "4: GBFS", 
-                    "5: BFS", 
-                    "6: Q-Learning", 
+                    "1: Manual",
+                    "2: A*",
+                    "3: Dijkstra",
+                    "4: GBFS",
+                    "5: BFS",
+                    "6: Q-Learning",
                     "7: SARSA"
                 ]
                 for key_text in algo_keys:
@@ -146,14 +165,27 @@ class UIManager:
                     y_offset += key_render.get_height() + 5
                 return
 
+            # Maze Type Section
+            maze_title = self.fonts['medium'].render("Maze Type:", True, COLORS['UI_HEADER'])
+            surface.blit(maze_title, (PADDING, y_offset))
+            y_offset += maze_title.get_height() + 5
+
+            maze_text = self.fonts['small'].render(
+                game_logic.current_maze.name.replace("_", " "),
+                True,
+                COLORS['UI_TEXT']
+            )
+            surface.blit(maze_text, (PADDING, y_offset))
+            y_offset += maze_text.get_height() + PADDING
+
             # Algorithm Section
             algo_title = self.fonts['medium'].render("Algorithm:", True, COLORS['UI_HEADER'])
             surface.blit(algo_title, (PADDING, y_offset))
             y_offset += algo_title.get_height() + 5
 
             algo_name = self.fonts['small'].render(
-                current_algorithm.name if current_algorithm else "Not Selected", 
-                True, 
+                current_algorithm.name if current_algorithm else "Not Selected",
+                True,
                 COLORS['PATH_ASTAR']
             )
             surface.blit(algo_name, (PADDING, y_offset))
@@ -165,8 +197,8 @@ class UIManager:
             y_offset += state_title.get_height() + 5
 
             state_text = self.fonts['small'].render(
-                game_logic.state_manager.state.name, 
-                True, 
+                game_logic.state_manager.state.name,
+                True,
                 {
                     GameState.WAITING: COLORS['PATH_MANUAL'],
                     GameState.PLAYING: COLORS['GREEN'],
@@ -183,46 +215,46 @@ class UIManager:
             y_offset += score_title.get_height() + 5
 
             score_text = self.fonts['small'].render(
-                str(game_logic.score), 
-                True, 
+                str(game_logic.score),
+                True,
                 COLORS['RED']
             )
             surface.blit(score_text, (PADDING, y_offset))
             y_offset += score_text.get_height() + PADDING
 
             # Time Remaining Section
-            time_title = self.fonts['medium'].render("Time:", True, COLORS['UI_HEADER'])  
-            surface.blit(time_title, (PADDING, y_offset))  
-            y_offset += time_title.get_height() + 5  
+            time_title = self.fonts['medium'].render("Time:", True, COLORS['UI_HEADER'])
+            surface.blit(time_title, (PADDING, y_offset))
+            y_offset += time_title.get_height() + 5
 
-            time_remaining = game_logic.time_manager.remaining_seconds  
-            time_color = (  
-                COLORS['RED'] if time_remaining < 30 else   
-                COLORS['TIMER_WARNING'] if time_remaining < 60 else   
-                COLORS['UI_TEXT']  
-            )  
+            time_remaining = game_logic.time_manager.remaining_seconds
+            time_color = (
+                COLORS['RED'] if time_remaining < 30 else
+                COLORS['TIMER_WARNING'] if time_remaining < 60 else
+                COLORS['UI_TEXT']
+            )
 
-            time_text = self.fonts['small'].render(  
-                f"{time_remaining} seconds",   
-                True,   
-                time_color  
-            )  
-            surface.blit(time_text, (PADDING, y_offset))  
+            time_text = self.fonts['small'].render(
+                f"{time_remaining} seconds",
+                True,
+                time_color
+            )
+            surface.blit(time_text, (PADDING, y_offset))
             y_offset += time_text.get_height() + PADDING
 
             # Game Over / Restart Hints
             if game_logic.state_manager.state in [GameState.WIN, GameState.LOSE]:
                 game_over_text = self.fonts['medium'].render(
-                    "Game Over!", 
-                    True, 
+                    "Game Over!",
+                    True,
                     COLORS['RED']
                 )
                 surface.blit(game_over_text, (PADDING, y_offset))
                 y_offset += game_over_text.get_height() + 10
 
                 restart_text = self.fonts['small'].render(
-                    "Press 'R' to Restart", 
-                    True, 
+                    "Press 'R' to Restart",
+                    True,
                     COLORS['UI_TEXT']
                 )
                 surface.blit(restart_text, (PADDING, y_offset))

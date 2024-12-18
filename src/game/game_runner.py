@@ -7,7 +7,7 @@ from src.environment.robot import Robot
 from src.game.game_logic import GameLogic
 from src.game.ui_manager import UIManager
 from src.game.metrics_manager import MetricsDetailWindow, MetricsManager
-from src.config.types import AlgorithmType
+from src.config.types import AlgorithmType, TestScenario
 from src.config.constants import (
     GameState, 
     FPS, 
@@ -26,25 +26,49 @@ class EventHandler:
         self.running = True
         self.current_algorithm = AlgorithmType.MANUAL
         self.current_pathfinder = None
+        self.current_maze = TestScenario.DIAGONAL
 
-    def handle_events(self) -> bool:  
-        """Process game events"""  
-        for event in pygame.event.get():  
-            if event.type == pygame.QUIT or (  
-                event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE  
-            ):  
-                return False  
+    def handle_events(self) -> bool:
+        """Process game events"""
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT or (
+                event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE
+            ):
+                return False
 
-            if event.type == pygame.KEYDOWN:  
-                # Always allow reset  
-                if event.key == pygame.K_r:  
-                    return self._handle_reset()  
+            if event.type == pygame.KEYDOWN:
+                # Add maze selection handling
+                if self.game_state.state_manager.state == GameState.WAITING:
+                    if event.key == pygame.K_F1:
+                        self._switch_maze(TestScenario.DIAGONAL)
+                    elif event.key == pygame.K_F2:
+                        self._switch_maze(TestScenario.SNAKE)
+                    elif event.key == pygame.K_F3:
+                        self._switch_maze(TestScenario.OPEN)
+                    elif event.key == pygame.K_F4:
+                        self._switch_maze(TestScenario.BOTTLENECK)
 
-                # Algorithm selection can happen in any state  
-                if event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_6, pygame.K_7]:  
-                    self._handle_algorithm_selection(event.key)  
+                # Always allow reset
+                if event.key == pygame.K_r:
+                    return self._handle_reset()
+
+                # Algorithm selection can happen in WAITING state
+                if self.game_state.state_manager.state == GameState.WAITING:
+                    if event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_6, pygame.K_7]:
+                        self._handle_algorithm_selection(event.key)
 
         return True
+
+    def _switch_maze(self, scenario: TestScenario):
+        """Handle maze switching"""
+        if self.map.change_maze(scenario):
+            self.current_maze = scenario
+            self.game_state.set_maze_type(scenario)
+            self.robot.x = self.map.SPAWN_POS[0]
+            self.robot.y = self.map.SPAWN_POS[1]
+            for algo_type in AlgorithmType:
+                self.map.clear_algorithm_path(algo_type)
+
 
     def handle_input(self):
         """Handle input based on current algorithm"""
