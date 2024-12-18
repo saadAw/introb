@@ -8,6 +8,11 @@ class AStarPathfinder:
         self.game_map = game_map
         self.width = game_map.width
         self.height = game_map.height
+        self.game_logic = None
+
+    def set_game_logic(self, game_logic):  
+        """Set reference to game logic for metrics tracking"""  
+        self.game_logic = game_logic
         
     def get_neighbors(self, pos: Tuple[int, int]) -> List[Tuple[int, int]]:
         """Get valid neighboring positions"""
@@ -32,69 +37,65 @@ class AStarPathfinder:
 
         return abs(x1-x2) + abs(y1-y2)
 
-    def find_path(self, start: Tuple[int, int], goal: Tuple[int, int]) -> Tuple[List[Tuple[int, int]], float]:
-        """
-        Find shortest path using A* algorithm
-        Returns:
-            Tuple containing:
-            - List of positions representing the path from start to goal
-            - Total cost of the path (float('inf') if no path exists)
-        """
-        # Validate start and goal positions
-        if not (self.game_map.is_valid_move(*start) and self.game_map.is_valid_move(*goal)):
-            return [], float('inf')
+    def find_path(self, start: Tuple[int, int], goal: Tuple[int, int]) -> Tuple[List[Tuple[int, int]], float]:  
+        """  
+        Find shortest path using A* algorithm  
+        Returns:  
+            Tuple containing:  
+            - List of positions representing the path from start to goal  
+            - Total cost of the path (float('inf') if no path exists)  
+        """  
+        # Validate start and goal positions  
+        if not (self.game_map.is_valid_move(*start) and self.game_map.is_valid_move(*goal)):  
+            return [], float('inf')  
 
-        # Initialize data structures
-        # Queue entries are tuples of (f_cost, position) where f_cost = g_cost + heuristic
-        queue: List[Tuple[float, Tuple[int, int]]] = [(self.calculate_heuristic(start, goal), start)]
+        # Initialize data structures  
+        queue: List[Tuple[float, Tuple[int, int]]] = [(self.calculate_heuristic(start, goal), start)]  
+        came_from: Dict[Tuple[int, int], Optional[Tuple[int, int]]] = {start: None}  
+        g_costs: Dict[Tuple[int, int], float] = {start: 0}  
+        visited: Set[Tuple[int, int]] = set()  
 
-        # Maps positions to their predecessor in the optimal path
-        came_from: Dict[Tuple[int, int], Optional[Tuple[int, int]]] = {start: None}
+        # Increment node count for start position  
+        if self.game_logic:  
+            self.game_logic.increment_nodes_explored()  
 
-        # Maps positions to their g_cost (actual distance from start)
-        g_costs: Dict[Tuple[int, int], float] = {start: 0}
+        while queue:  
+            _, current_pos = heapq.heappop(queue)  
 
-        # Keeps track of processed positions to avoid cycles
-        visited: Set[Tuple[int, int]] = set()
+            if current_pos == goal:  
+                break  
 
-        while queue:
-            # Get position with lowest f_cost from queue
-            _, current_pos = heapq.heappop(queue)
+            if current_pos in visited:  
+                continue  
 
-            # Path found if we reached the goal
-            if current_pos == goal:
-                break
+            visited.add(current_pos)  
 
-            # Skip if position was already processed
-            if current_pos in visited:
-                continue
+            # Increment node count for each newly visited position  
+            if self.game_logic:  
+                self.game_logic.increment_nodes_explored()  
 
-            visited.add(current_pos)
+            for next_pos in self.get_neighbors(current_pos):  
+                new_g_cost = g_costs[current_pos] + 1  
 
-            # Examine all valid neighboring positions
-            for next_pos in self.get_neighbors(current_pos):
-                # Calculate new g_cost for reaching next_pos through current_pos
-                new_g_cost = g_costs[current_pos] + 1  # Cost of 1 for each step
+                if next_pos not in g_costs or new_g_cost < g_costs[next_pos]:  
+                    g_costs[next_pos] = new_g_cost  
+                    f_cost = new_g_cost + self.calculate_heuristic(next_pos, goal)  
+                    came_from[next_pos] = current_pos  
+                    heapq.heappush(queue, (f_cost, next_pos))  
 
-                # Update position if we found a better path to it
-                if next_pos not in g_costs or new_g_cost < g_costs[next_pos]:
-                    g_costs[next_pos] = new_g_cost
-                    # Calculate f_cost = g_cost + heuristic for priority queue
-                    f_cost = new_g_cost + self.calculate_heuristic(next_pos, goal)
-                    came_from[next_pos] = current_pos
-                    heapq.heappush(queue, (f_cost, next_pos))
+                    # Increment node count for each newly discovered position  
+                    if self.game_logic and next_pos not in visited:  
+                        self.game_logic.increment_nodes_explored()  
 
-        # No path found if goal wasn't reached
-        if goal not in came_from:
-            return [], float('inf')
+        if goal not in came_from:  
+            return [], float('inf')  
 
-        # Reconstruct path by walking backwards from goal to start
-        path: List[Tuple[int, int]] = []
-        current_pos = goal
-        while current_pos is not None:
-            path.append(current_pos)
-            current_pos = came_from[current_pos]
-        path.reverse()
+        path: List[Tuple[int, int]] = []  
+        current_pos = goal  
+        while current_pos is not None:  
+            path.append(current_pos)  
+            current_pos = came_from[current_pos]  
+        path.reverse()  
 
         return path, g_costs[goal]
 

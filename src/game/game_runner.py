@@ -6,6 +6,7 @@ from src.environment.map import Map
 from src.environment.robot import Robot
 from src.game.game_logic import GameLogic
 from src.game.ui_manager import UIManager
+from src.game.metrics_manager import MetricsDetailWindow, MetricsManager
 from src.config.types import AlgorithmType
 from src.config.constants import (
     GameState, 
@@ -30,6 +31,7 @@ class GameRunner:
             
         self.setup_initial_components()
         self.setup_remaining_components()
+        self.metrics_detail_window = MetricsDetailWindow()
         
         self.running = True
 
@@ -60,7 +62,9 @@ class GameRunner:
             try:
                 self.ui_manager = UIManager()
                 self.clock = pygame.time.Clock()
+                self.metrics_manager = MetricsManager()  
                 self.game_logic = GameLogic((self.game_map.width, self.game_map.height))  
+                self.game_logic.metrics_manager = self.metrics_manager
                 self.game_logic.state = GameState.WAITING
                 
                 self.robot = Robot(
@@ -116,6 +120,7 @@ class GameRunner:
             self.game_logic = GameLogic((self.game_map.width, self.game_map.height))  
             self.game_logic.state = GameState.WAITING  
             self.robot.set_game_logic(self.game_logic)  
+            self.metrics_detail_window = MetricsDetailWindow()
 
             # Reset current algorithm  
             self.current_algorithm = AlgorithmType.MANUAL  
@@ -130,16 +135,22 @@ class GameRunner:
         """Initialize all pathfinding algorithms"""
         try:
             self.pathfinders = {
-                AlgorithmType.DIJKSTRA: lambda: DijkstraPathfinder(self.game_map),
-                AlgorithmType.ASTAR: lambda: AStarPathfinder(self.game_map),
-                AlgorithmType.GBFS: lambda: GreedyBestFirstPathfinder(self.game_map),
-                AlgorithmType.BFS: lambda: BFSPathfinder(self.game_map),
-                AlgorithmType.QL: lambda: QLearningPathfinder(self.game_map),
-                AlgorithmType.SARSA: lambda: SARSAPathfinder(self.game_map),
+                AlgorithmType.DIJKSTRA: lambda: self._init_pathfinder(DijkstraPathfinder),
+                AlgorithmType.ASTAR: lambda: self._init_pathfinder(AStarPathfinder),
+                AlgorithmType.GBFS: lambda: self._init_pathfinder(GreedyBestFirstPathfinder),
+                AlgorithmType.BFS: lambda: self._init_pathfinder(BFSPathfinder),
+                AlgorithmType.QL: lambda: self._init_pathfinder(QLearningPathfinder),
+                AlgorithmType.SARSA: lambda: self._init_pathfinder(SARSAPathfinder)
             }
         except Exception as e:
             print(f"Error setting up algorithms: {e}")
             raise
+    
+    def _init_pathfinder(self, pathfinder_class):  
+        """Helper method to initialize pathfinder with game logic"""  
+        pathfinder = pathfinder_class(self.game_map)  
+        pathfinder.set_game_logic(self.game_logic)  
+        return pathfinder
 
     def handle_events(self):  
         """Process game events"""  
@@ -148,6 +159,8 @@ class GameRunner:
                 if event.type == pygame.QUIT or (  
                     event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE  
                 ):  
+                    if self.metrics_detail_window.visible:
+                        self.metrics_detail_window.hide()
                     self.running = False  
                     return  
 
@@ -161,13 +174,34 @@ class GameRunner:
                     if self.game_logic.state == GameState.WAITING:  
                         self._handle_algorithm_selection(event.key)  
 
+                if event.type == pygame.MOUSEBUTTONDOWN:  
+                    # Check if click was on a metric row  
+                    for rect, algo_type in self.ui_manager.metric_click_areas:  
+                        if rect.collidepoint(event.pos):  
+                            metrics = self.metrics_manager.get_average_metrics(algo_type)  
+                            if metrics:  
+                                self.metrics_detail_window.show(
+                                    algo_type, 
+                                    metrics,
+                                    (self.screen.get_width(), self.screen.get_height())
+                                )  
+
+                # Handle metrics window events  
+                if self.metrics_detail_window.visible:  
+                    if event.type == pygame.MOUSEBUTTONDOWN:  
+                        close_rect = self.metrics_detail_window.draw()  
+                        if close_rect and close_rect.collidepoint(event.pos):  
+                            self.metrics_detail_window.hide()  
+                    elif event.type == pygame.QUIT:  
+                        self.metrics_detail_window.hide()
+
         except Exception as e:  
             print(f"Error handling events: {e}")  
-            self.running = False  
+            self.running = False
 
     def _handle_algorithm_selection(self, key):  
         """Handle algorithm selection based on key press"""  
-        if key not in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_6, pygame.K_7, pygame.K_8]:  
+        if key not in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_6, pygame.K_7]:  
             return  
 
         # Clear previous algorithm path  
@@ -189,6 +223,9 @@ class GameRunner:
             algo_type, pathfinder_creator = algorithm_map[key]  
             self.current_algorithm = algo_type  
             self.current_pathfinder = pathfinder_creator() if pathfinder_creator else None  
+
+            # Start metrics tracking for the new algorithm  
+            self.metrics_manager.start_run(self.current_algorithm)
 
             # Train reinforcement learning agents if selected
             if self.current_algorithm in [AlgorithmType.QL, AlgorithmType.SARSA] and self.current_pathfinder:
@@ -269,7 +306,8 @@ class GameRunner:
             self.ui_manager.draw_game_ui(
                 main_surface,
                 self.game_logic,
-                self.current_algorithm
+                self.current_algorithm,
+                self.metrics_manager
             )
             
             # Update display
@@ -291,9 +329,16 @@ class GameRunner:
         try:
             while self.running:
                 self.handle_events()
-                self.handle_input()
-                self.update()
-                self.draw()
+                
+                # Only process game updates if metrics window is not visible
+                if not self.metrics_detail_window.visible:
+                    self.handle_input()
+                    self.update()
+                    self.draw()
+                else:
+                    # Draw metrics window when it's visible
+                    self.metrics_detail_window.draw()
+                
                 self.clock.tick(FPS)
         except Exception as e:
             print(f"Error in main game loop: {e}")

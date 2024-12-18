@@ -24,7 +24,7 @@ SCREEN_HEIGHT = info.current_h
 
 # UI Configuration
 UI_PANEL_WIDTH = 300
-PADDING = 20
+PADDING = 15
 
 # Base cell size
 BASE_CELL_SIZE = 32
@@ -69,6 +69,7 @@ COLORS = {
     'GRID': (200, 200, 200),
     'TIMER_WARNING': (255, 165, 0),
     'UI_BACKGROUND': (240, 240, 240),
+    'UI_HIGHLIGHT': pygame.Color(200, 200, 200),
     'UI_TEXT': (50, 50, 50),
     'UI_HEADER': (70, 70, 70),
     'PATH_MANUAL': (100, 100, 100),    # Gray
