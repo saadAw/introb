@@ -12,7 +12,7 @@ class QLearningPathfinder:
         'LEARNING_RATE_MIN': 0.01,       # Minimum learning rate
         'DISCOUNT_FACTOR': 0.95,         # Future reward discount
         'EPSILON_START': 1.0,            # Initial exploration rate
-        'EPSILON_MIN': 0.01,             # Minimum exploration rate
+        'EPSILON_MIN': 0.001,             # Minimum exploration rate
         'EPSILON_DECAY': 0.995,          # Exploration decay rate
 
         # Memory and tracking
@@ -22,22 +22,22 @@ class QLearningPathfinder:
 
         # Reward structure
         'REWARD_GOAL': 100.0,            # Reward for reaching goal
-        'REWARD_WALL': -5.0,             # Penalty for hitting wall
-        'REWARD_LOOP': -2.0,             # Penalty for revisiting states
-        'REWARD_CLOSER': 1.0,            # Reward for moving closer to goal
+        'REWARD_WALL': -10.0,             # Penalty for hitting wall
+        'REWARD_LOOP': -10.0,             # Penalty for revisiting states
+        'REWARD_CLOSER': 0.5,            # Reward for moving closer to goal
         'REWARD_FARTHER': -0.5,          # Penalty for moving away from goal
-        'EXPLORATION_BONUS_FACTOR': 1.0,  # Factor for exploration bonus
+        'EXPLORATION_BONUS_FACTOR': 1,  # Factor for exploration bonus
 
         # Training settings
         'DEFAULT_EPISODES': 1000,         # Default number of training episodes
-        'MAX_STEPS_PER_EPISODE': 1000,    # Maximum steps per episode
+        'MAX_STEPS_PER_EPISODE': 1500,    # Maximum steps per episode
         'PROGRESS_PRINT_INTERVAL': 100,    # Episodes between progress updates
 
         # Early Stopping
-        'EARLY_STOPPING_PATIENCE': 20,     # Number of epochs to wait for improvement  
+        'EARLY_STOPPING_PATIENCE': 300,     # Number of epochs to wait for improvement  
         'EARLY_STOPPING_MIN_DELTA': 0.1,   # Minimum change to qualify as an improvement  
         'EARLY_STOPPING_WINDOW': 100,      # Window size for calculating average reward  
-        'MIN_EPISODES': 200,              # Minimum number of episodes before early stopping  
+        'MIN_EPISODES': 100,              # Minimum number of episodes before early stopping  
         'MAX_EPISODES': 5000,             # Maximum number of episodes regardless of improvement
     }
 
