@@ -6,7 +6,6 @@ from src.environment.map import Map
 from src.environment.robot import Robot
 from src.game.game_logic import GameLogic
 from src.game.ui_manager import UIManager
-from src.game.metrics_manager import MetricsDetailWindow, MetricsManager
 from src.config.types import AlgorithmType, TestScenario
 from src.config.constants import (
     GameState, 
@@ -228,7 +227,7 @@ class GameRunner:
 
         # Create component managers
         self.event_handler = EventHandler(
-            self.game_logic, 
+            self.game_logic,  # This is now properly initialized
             self.game_map, 
             self.robot, 
             self.pathfinders
@@ -300,6 +299,15 @@ class GameRunner:
             print(f"Error during component setup: {e}")
             self.cleanup()
             sys.exit(1)
+            
+    def cleanup(self):
+        """Clean up pygame resources"""
+        try:
+            if hasattr(self, 'game_logic'):
+                self.game_logic.cleanup()
+            pygame.quit()
+        except Exception as e:
+            print(f"Error during cleanup: {e}")
 
     def setup_algorithms(self) -> Dict[AlgorithmType, Callable]:
         """Initialize all pathfinding algorithms"""
@@ -355,12 +363,6 @@ class GameRunner:
         finally:
             self.cleanup()
 
-    def cleanup(self):
-        """Clean up pygame resources"""
-        try:
-            pygame.quit()
-        except Exception as e:
-            print(f"Error during cleanup: {e}")
 
 if __name__ == "__main__":
     try:

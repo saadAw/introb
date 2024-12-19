@@ -1,126 +1,188 @@
-# src/game/metrics_manager.py
-
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional
-from time import time
+from datetime import datetime
+import json
+import statistics
+from src.config.types import AlgorithmType, TestScenario
 
-import pygame
-from src.config.constants import COLORS
-from src.config.types import AlgorithmType
+@dataclass
+class RunMetrics:
+    """Stores metrics for a single algorithm run"""
+    algorithm: AlgorithmType
+    maze_type: TestScenario
+    start_time: datetime
+    end_time: Optional[datetime] = None
+    path_length: int = 0
+    nodes_explored: int = 0
+    success: bool = False
+    score: float = 0.0
+    completion_time: float = 0.0
+    memory_used: float = 0.0
+    remaining_time: int = 0
+    total_time: int = 0
+    time_taken: float = 0.0
+    steps_per_second: float = 0.0
+    exploration_efficiency: float = 0.0
 
 @dataclass
 class AlgorithmMetrics:
-    path_length: int = 0
-    execution_time: float = 0.0
-    nodes_explored: int = 0
-    path_cost: float = 0.0
-    success_rate: float = 0.0
-    memory_usage: int = 0
+    """Aggregated metrics for an algorithm across all runs"""
+    total_runs: int = 0
+    successful_runs: int = 0
+    avg_path_length: float = 0.0
+    avg_completion_time: float = 0.0
+    avg_nodes_explored: float = 0.0
+    avg_score: float = 0.0
+    avg_steps_per_second: float = 0.0
+    avg_exploration_efficiency: float = 0.0
+    min_path_length: int = float('inf')
+    max_path_length: int = 0
+    fastest_completion: float = float('inf')
+    slowest_completion: float = 0
+    best_score: float = 0
+    runs: List[RunMetrics] = field(default_factory=list)
+
 
 class MetricsManager:
-    def __init__(self):
-        self.metrics: Dict[AlgorithmType, List[AlgorithmMetrics]] = {
-            algo_type: [] for algo_type in AlgorithmType
-        }
-        self.current_run: Dict[AlgorithmType, AlgorithmMetrics] = {}
+    def __init__(self, save_file: str = "metrics_data.json"):
+        self.save_file = save_file
+        self.metrics: Dict[str, Dict[str, AlgorithmMetrics]] = {}  # maze_type -> algorithm -> metrics
+        self.current_run: Optional[RunMetrics] = None
+        self.load_metrics()
 
-    def start_run(self, algorithm: AlgorithmType):
-        self.current_run[algorithm] = AlgorithmMetrics()
-        self.current_run[algorithm].execution_time = time()
-
-    def end_run(self, algorithm: AlgorithmType, success: bool):
-        if algorithm in self.current_run:
-            metrics = self.current_run[algorithm]
-            metrics.execution_time = time() - metrics.execution_time
-            metrics.success_rate = 1.0 if success else 0.0
-            self.metrics[algorithm].append(metrics)
-
-    def get_average_metrics(self, algorithm: AlgorithmType) -> Optional[AlgorithmMetrics]:
-        if not self.metrics[algorithm]:
-            return None
-
-        runs = self.metrics[algorithm]
-        return AlgorithmMetrics(
-            path_length=sum(r.path_length for r in runs) / len(runs),
-            execution_time=sum(r.execution_time for r in runs) / len(runs),
-            nodes_explored=sum(r.nodes_explored for r in runs) / len(runs),
-            path_cost=sum(r.path_cost for r in runs) / len(runs),
-            success_rate=sum(r.success_rate for r in runs) / len(runs),
-            memory_usage=sum(r.memory_usage for r in runs) / len(runs)
+    def start_run(self, algorithm: AlgorithmType, maze_type: TestScenario):
+        """Start tracking a new algorithm run"""
+        self.current_run = RunMetrics(
+            algorithm=algorithm,
+            maze_type=maze_type,
+            start_time=datetime.now()
         )
-    
-class MetricsDetailWindow:  
-    def __init__(self):  
-        self.font_large = pygame.font.Font(None, 36)  
-        self.font = pygame.font.Font(None, 28)  
-        self.font_small = pygame.font.Font(None, 20)  
-        self.padding = 20  
-        self.window_size = (400, 300)  
-        self.visible = False  
-        self.current_algorithm = None  
-        self.metrics = None  
-        self.main_window_size = None  
 
-    def show(self, algorithm_type, metrics, main_window_size):  
-        self.visible = True  
-        self.current_algorithm = algorithm_type  
-        self.metrics = metrics  
-        self.main_window_size = main_window_size  
+    def update_run(self, nodes_explored: int, path_length: int, time_taken: float, 
+                  remaining_time: int, total_time: int, memory_used: float = 0):
+        """Update metrics for current run"""
+        if self.current_run:
+            self.current_run.nodes_explored = nodes_explored
+            self.current_run.path_length = path_length
+            self.current_run.time_taken = time_taken
+            self.current_run.remaining_time = remaining_time
+            self.current_run.total_time = total_time
+            self.current_run.memory_used = memory_used
+            
+            # Calculate derived metrics
+            if time_taken > 0:
+                self.current_run.steps_per_second = path_length / time_taken
+            if nodes_explored > 0:
+                self.current_run.exploration_efficiency = path_length / nodes_explored
 
-        # Create new window  
-        self.window = pygame.display.set_mode(self.window_size, pygame.RESIZABLE)  
-        pygame.display.set_caption(f"Metrics Details - {algorithm_type.value}")  
+    def end_run(self, success: bool, score: float):
+        """End current run and save metrics"""
+        if self.current_run:
+            self.current_run.end_time = datetime.now()
+            self.current_run.success = success
+            self.current_run.score = score
+            self.current_run.completion_time = (
+                self.current_run.end_time - self.current_run.start_time
+            ).total_seconds()
 
-    def hide(self):  
-        self.visible = False  
-        if self.main_window_size:  
-            pygame.display.set_mode(self.main_window_size)  # Reset to main window size  
+            # Add to metrics storage
+            maze_key = self.current_run.maze_type.name
+            algo_key = self.current_run.algorithm.name
 
-    def draw(self):  
-        if not self.visible:  
-            return  
+            if maze_key not in self.metrics:
+                self.metrics[maze_key] = {}
 
-        self.window.fill(COLORS['UI_BACKGROUND'])  
-        current_y = self.padding  
+            if algo_key not in self.metrics[maze_key]:
+                self.metrics[maze_key][algo_key] = AlgorithmMetrics()
 
-        # Draw title  
-        title_surf = self.font_large.render(  
-            f"Metrics for {self.current_algorithm.value}",   
-            True,   
-            COLORS['UI_HEADER']  
-        )  
-        self.window.blit(title_surf, (self.padding, current_y))  
-        current_y += title_surf.get_height() + self.padding  
+            algo_metrics = self.metrics[maze_key][algo_key]
+            algo_metrics.total_runs += 1
+            if success:
+                algo_metrics.successful_runs += 1
 
-        # Draw all metrics  
-        metrics_items = [  
-            ("Execution Time", f"{self.metrics.execution_time:.3f}s"),  
-            ("Path Length", str(self.metrics.path_length)),  
-            ("Nodes Explored", str(self.metrics.nodes_explored)),  
-            ("Success Rate", f"{self.metrics.success_rate:.1%}"),  
-            ("Memory Usage", f"{self.metrics.memory_usage:.2f}MB"),  
-            ("Path Cost", str(self.metrics.path_cost))  
-        ]  
+            # Update averages
+            algo_metrics.runs.append(self.current_run)
+            self._update_averages(algo_metrics)
 
-        for label, value in metrics_items:  
-            label_surf = self.font.render(label + ":", True, COLORS['UI_TEXT'])  
-            value_surf = self.font.render(value, True, COLORS['UI_HEADER'])  
+            # Save to file
+            self.save_metrics()
+            self.current_run = None
 
-            self.window.blit(label_surf, (self.padding, current_y))  
-            self.window.blit(value_surf, (200, current_y))  
-            current_y += label_surf.get_height() + 10  
+    def _update_averages(self, metrics: AlgorithmMetrics):
+        """Update average metrics"""
+        successful_runs = [run for run in metrics.runs if run.success]
+        if successful_runs:
+            metrics.avg_path_length = statistics.mean(run.path_length for run in successful_runs)
+            metrics.avg_completion_time = statistics.mean(run.completion_time for run in successful_runs)
+            metrics.avg_nodes_explored = statistics.mean(run.nodes_explored for run in successful_runs)
+            metrics.avg_score = statistics.mean(run.score for run in successful_runs)
+            metrics.avg_steps_per_second = statistics.mean(run.steps_per_second for run in successful_runs)
+            metrics.avg_exploration_efficiency = statistics.mean(run.exploration_efficiency for run in successful_runs)
+            
+            # Update min/max metrics
+            metrics.min_path_length = min(run.path_length for run in successful_runs)
+            metrics.max_path_length = max(run.path_length for run in successful_runs)
+            metrics.fastest_completion = min(run.completion_time for run in successful_runs)
+            metrics.slowest_completion = max(run.completion_time for run in successful_runs)
+            metrics.best_score = max(run.score for run in successful_runs)
 
-        # Draw close button  
-        close_rect = pygame.Rect(  
-            self.window_size[0] - 100 - self.padding,  
-            self.window_size[1] - 40 - self.padding,  
-            100,  
-            40  
-        )  
-        pygame.draw.rect(self.window, COLORS['UI_TEXT'], close_rect)  
-        close_text = self.font_small.render("Close", True, COLORS['UI_BACKGROUND'])  
-        text_rect = close_text.get_rect(center=close_rect.center)  
-        self.window.blit(close_text, text_rect)  
+    def save_metrics(self):
+        """Save metrics to file"""
+        data = {}
+        for maze_type, maze_metrics in self.metrics.items():
+            data[maze_type] = {}
+            for algo, metrics in maze_metrics.items():
+                data[maze_type][algo] = {
+                    'total_runs': metrics.total_runs,
+                    'successful_runs': metrics.successful_runs,
+                    'avg_path_length': metrics.avg_path_length,
+                    'avg_completion_time': metrics.avg_completion_time,
+                    'avg_nodes_explored': metrics.avg_nodes_explored,
+                    'avg_score': metrics.avg_score
+                }
+        
+        with open(self.save_file, 'w') as f:
+            json.dump(data, f, indent=4)
 
-        pygame.display.flip()  
-        return close_rect
+    def load_metrics(self):
+        """Load metrics from file"""
+        try:
+            with open(self.save_file, 'r') as f:
+                data = json.load(f)
+                for maze_type, maze_metrics in data.items():
+                    self.metrics[maze_type] = {}
+                    for algo, metrics_data in maze_metrics.items():
+                        metrics = AlgorithmMetrics(
+                            total_runs=metrics_data['total_runs'],
+                            successful_runs=metrics_data['successful_runs'],
+                            avg_path_length=metrics_data['avg_path_length'],
+                            avg_completion_time=metrics_data['avg_completion_time'],
+                            avg_nodes_explored=metrics_data['avg_nodes_explored'],
+                            avg_score=metrics_data['avg_score']
+                        )
+                        self.metrics[maze_type][algo] = metrics
+        except FileNotFoundError:
+            pass
+
+    def get_algorithm_performance(self, algorithm: AlgorithmType, maze_type: TestScenario) -> Optional[AlgorithmMetrics]:
+        """Get performance metrics for a specific algorithm and maze type"""
+        maze_key = maze_type.name
+        algo_key = algorithm.name
+        return self.metrics.get(maze_key, {}).get(algo_key)
+
+    def print_summary(self):
+        """Print a summary of all metrics"""
+        for maze_type, maze_metrics in self.metrics.items():
+            print(f"\nMaze Type: {maze_type}")
+            print("=" * 50)
+            for algo, metrics in maze_metrics.items():
+                print(f"\nAlgorithm: {algo}")
+                print(f"Total Runs: {metrics.total_runs}")
+                print(f"Success Rate: {(metrics.successful_runs / metrics.total_runs * 100):.2f}%")
+                print(f"Path Length: min={metrics.min_path_length}, avg={metrics.avg_path_length:.2f}, max={metrics.max_path_length}")
+                print(f"Completion Time: fastest={metrics.fastest_completion:.2f}s, avg={metrics.avg_completion_time:.2f}s, slowest={metrics.slowest_completion:.2f}s")
+                print(f"Nodes Explored: {metrics.avg_nodes_explored:.2f}")
+                print(f"Steps per Second: {metrics.avg_steps_per_second:.2f}")
+                print(f"Exploration Efficiency: {metrics.avg_exploration_efficiency:.2f}")
+                print(f"Scores: best={metrics.best_score:.2f}, avg={metrics.avg_score:.2f}")
+                print("-" * 30)

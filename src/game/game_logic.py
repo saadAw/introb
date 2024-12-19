@@ -2,6 +2,8 @@ import pygame
 from typing import Tuple, Callable
 from src.config.constants import GameState, TIME_LIMIT, FPS, COLORS
 from src.config.types import AlgorithmType, TestScenario
+from src.game.metrics_manager import MetricsManager
+from datetime import datetime
 
 class GameStateManager:
     """Manages game state and transitions"""
@@ -152,6 +154,35 @@ class GameLogic:
 
         self.map_size = map_size
         self.optimal_path_length = optimal_path_length
+        
+        self.metrics_manager = MetricsManager()
+        self.nodes_explored = 0
+        self.start_time = None
+        
+    def cleanup(self):
+        """Clean up resources and save final metrics"""
+        if self.metrics_manager.current_run:
+            self.metrics_manager.end_run(
+                success=self.state_manager.state == GameState.WIN,
+                score=self.score_manager.score
+            )
+        self.metrics_manager.save_metrics()
+        print("\nFinal Metrics Summary:")
+        print("=" * 50)
+        self.metrics_manager.print_summary()
+        
+    def set_algorithm(self, algorithm: AlgorithmType):
+        """Set current algorithm"""
+        self.algorithm_tracker.set_algorithm(algorithm)
+        self.nodes_explored = 0  # Reset nodes counter
+        self.start_time = datetime.now()  # Start timing
+        self.metrics_manager.start_run(algorithm, self.current_maze)
+
+    def increment_nodes_explored(self):
+        """Increment nodes explored counter"""
+        self.nodes_explored += 1
+        if self.metrics_manager.current_run:
+            self.metrics_manager.current_run.nodes_explored = self.nodes_explored
 
     def set_maze_type(self, maze_type: TestScenario):
         """Set current maze type"""
@@ -159,25 +190,42 @@ class GameLogic:
         return self.current_maze
         
     def update(self):  
-        # Update time only when in PLAYING state  
         if self.state_manager.state == GameState.PLAYING:  
             self.time_manager.update()  
 
             # Check for time out  
             if self.time_manager.is_time_expired():  
                 self.state_manager.state = GameState.LOSE
+                # Add metrics for failed run
+                self.metrics_manager.end_run(
+                    success=False,
+                    score=self.score_manager.score
+                )
+                self.metrics_manager.save_metrics()
 
     def check_win_condition(self, robot_pos: Tuple[int, int], goal_pos: Tuple[int, int]):
         """Check if robot has reached the goal"""
         if robot_pos == goal_pos:
-            # Update state
             self.state_manager.state = GameState.WIN
-
-            # Calculate and set final score
             final_score = self.score_manager.calculate_score(self.time_manager.time_remaining)
             self.score_manager.score = final_score
+            
+            # Update metrics with all available data
+            self.metrics_manager.update_run(
+                nodes_explored=self.nodes_explored,
+                path_length=self.score_manager.moves_made,
+                time_taken=(datetime.now() - self.start_time).total_seconds() if self.start_time else 0,
+                remaining_time=self.time_manager.remaining_seconds,
+                total_time=self.time_manager.total_time,
+                memory_used=0  # TODO: Implement memory tracking if needed
+            )
+            
+            self.metrics_manager.end_run(True, final_score)
+            self.metrics_manager.print_summary()
+            self.metrics_manager.save_metrics()
 
         return self.state_manager.state
+
 
     def calculate_reward(self, old_pos: Tuple[int, int], new_pos: Tuple[int, int], goal_pos: Tuple[int, int]) -> float:
         """Calculate reward for an action"""
@@ -230,7 +278,3 @@ class GameLogic:
     @property
     def used_algorithms(self):
         return self.algorithm_tracker.used_algorithms
-
-    def set_algorithm(self, algorithm: AlgorithmType):
-        """Set current algorithm"""
-        self.algorithm_tracker.set_algorithm(algorithm)

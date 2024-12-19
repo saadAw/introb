@@ -1,0 +1,46 @@
+{
+    "DIAGONAL": {
+        "ASTAR": {
+            "total_runs": 2,
+            "successful_runs": 2,
+            "avg_path_length": 208,
+            "avg_completion_time": 16.667134,
+            "avg_nodes_explored": 0,
+            "avg_score": 167
+        },
+        "DIJKSTRA": {
+            "total_runs": 1,
+            "successful_runs": 1,
+            "avg_path_length": 208,
+            "avg_completion_time": 13.886895,
+            "avg_nodes_explored": 0,
+            "avg_score": 167
+        },
+        "GBFS": {
+            "total_runs": 1,
+            "successful_runs": 1,
+            "avg_path_length": 276,
+            "avg_completion_time": 18.495148,
+            "avg_nodes_explored": 0,
+            "avg_score": 162
+        },
+        "BFS": {
+            "total_runs": 1,
+            "successful_runs": 1,
+            "avg_path_length": 208,
+            "avg_completion_time": 13.865128,
+            "avg_nodes_explored": 0,
+            "avg_score": 167
+        }
+    },
+    "SNAKE": {
+        "ASTAR": {
+            "total_runs": 1,
+            "successful_runs": 1,
+            "avg_path_length": 226,
+            "avg_completion_time": 15.031708,
+            "avg_nodes_explored": 0,
+            "avg_score": 165
+        }
+    }
+}
