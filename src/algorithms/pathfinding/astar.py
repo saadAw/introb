@@ -13,7 +13,6 @@ class AStarPathfinder:
     def set_game_logic(self, game_logic):
         """Set reference to game logic for metrics tracking"""
         self.game_logic = game_logic
-        print(f"Game logic set: {self.game_logic is not None}")  # Debug print
         
     def get_neighbors(self, pos: Tuple[int, int]) -> List[Tuple[int, int]]:
         """Get valid neighboring positions"""

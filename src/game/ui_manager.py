@@ -1,3 +1,4 @@
+from datetime import datetime
 import pygame
 from typing import List, Dict, Any, Callable
 from src.config.constants import COLORS, FPS, GameState, UI_PANEL_WIDTH, PADDING, TIME_LIMIT
@@ -209,18 +210,57 @@ class UIManager:
             surface.blit(state_text, (PADDING, y_offset))
             y_offset += state_text.get_height() + PADDING
 
-            # Score Section
-            score_title = self.fonts['medium'].render("Score:", True, COLORS['UI_HEADER'])
-            surface.blit(score_title, (PADDING, y_offset))
-            y_offset += score_title.get_height() + 5
+            # Score Section  
+            score_title = self.fonts['medium'].render("Score:", True, COLORS['UI_HEADER'])  
+            surface.blit(score_title, (PADDING, y_offset))  
+            y_offset += score_title.get_height() + 5  
 
-            score_text = self.fonts['small'].render(
-                str(game_logic.score),
-                True,
-                COLORS['RED']
-            )
-            surface.blit(score_text, (PADDING, y_offset))
-            y_offset += score_text.get_height() + PADDING
+            # Show live score during gameplay  
+            if game_logic.state_manager.state == GameState.PLAYING:  
+                live_score = game_logic.get_live_score()  
+                score_text = self.fonts['small'].render(  
+                    f"Current: {live_score:.2f}",  
+                    True,  
+                    COLORS['GREEN']  
+                )  
+                surface.blit(score_text, (PADDING, y_offset))  
+                y_offset += score_text.get_height() + 15  # Increased spacing after current score  
+
+                # Show score components (optional)  
+                if game_logic.start_time:  
+                    nodes_text = self.fonts['small'].render(  
+                        f"Nodes: {game_logic.total_nodes_explored}",  
+                        True,  
+                        COLORS['UI_TEXT']  
+                    )  
+                    surface.blit(nodes_text, (PADDING, y_offset))  
+                    y_offset += nodes_text.get_height() + 10  # Added spacing between components  
+
+                    path_text = self.fonts['small'].render(  
+                        f"Path: {game_logic.score_manager.moves_made}",  
+                        True,  
+                        COLORS['UI_TEXT']  
+                    )  
+                    surface.blit(path_text, (PADDING, y_offset))  
+                    y_offset += path_text.get_height() + 15  # Increased spacing after components  
+
+            # Show final score if game is over  
+            elif game_logic.state_manager.state in [GameState.WIN, GameState.LOSE]:  
+                score_text = self.fonts['small'].render(  
+                    f"Final: {game_logic.score:.2f}",  
+                    True,  
+                    COLORS['RED'] if game_logic.state_manager.state == GameState.LOSE else COLORS['PATH_DQN']  
+                )  
+                surface.blit(score_text, (PADDING, y_offset))  
+                y_offset += score_text.get_height() + PADDING  
+            else:  
+                score_text = self.fonts['small'].render(  
+                    "0.00",  
+                    True,  
+                    COLORS['UI_TEXT']  
+                )  
+                surface.blit(score_text, (PADDING, y_offset))  
+                y_offset += score_text.get_height() + PADDING
 
             # Time Remaining Section
             time_title = self.fonts['medium'].render("Time:", True, COLORS['UI_HEADER'])

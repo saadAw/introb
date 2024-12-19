@@ -31,35 +31,31 @@ class ScoreManager:
         self.nodes_explored = 0
 
     def calculate_score(self, time_taken: float, nodes_explored: int, path_length: int) -> float:
-        """
-        Calculate a normalized score (0-100) with more aggressive scaling for exploration efficiency
-        """
-        # Weights
-        PATH_WEIGHT = 0.35
-        EXPLORATION_WEIGHT = 0.45
-        TIME_WEIGHT = 0.20
+        """  
+        Calculate a normalized score (0-100) based on path efficiency, exploration, and time  
+        """  
+        # Weights  
+        PATH_WEIGHT = 0.65       # Slightly increased  
+        EXPLORATION_WEIGHT = 0.25 # Same  
+        TIME_WEIGHT = 0.10       # Slightly decreased  
 
-        # 1. Path Efficiency Score
-        path_ratio = self.optimal_path_length / max(path_length, 1)
-        path_score = min(100 * path_ratio, 100)
+        # 1. Path Efficiency Score (with stronger exponential penalty)  
+        path_ratio = self.optimal_path_length / max(path_length, 1)  
+        path_score = min(100 * (path_ratio ** 3.5), 100)  # Increased exponent from 3 to 3.5  
 
-        # 2. Exploration Efficiency Score - Completely revised
-        # Calculate nodes explored ratio (how many nodes per step in path)
-        nodes_per_step = nodes_explored / max(path_length, 1)
-        # Use logarithmic scaling to penalize high node exploration more severely
-        exploration_score = max(0, 100 - 20 * math.log10(nodes_per_step))
+        # Rest remains the same  
+        nodes_per_step = nodes_explored / max(path_length, 1)  
+        exploration_score = max(0, 100 - 15 * math.log10(nodes_per_step))  
+        time_score = max(0, 100 - 15 * math.log10(max(time_taken, 0.1)))  
 
-        # 3. Time Efficiency Score
-        time_score = max(0, 100 - 15 * math.log10(max(time_taken, 0.1)))
-
-        # Calculate weighted final score
-        final_score = (
-            PATH_WEIGHT * path_score +
-            EXPLORATION_WEIGHT * exploration_score +
-            TIME_WEIGHT * time_score
-        )
+        final_score = (  
+            PATH_WEIGHT * path_score +  
+            EXPLORATION_WEIGHT * exploration_score +  
+            TIME_WEIGHT * time_score  
+        )  
 
         return round(final_score, 2)
+    
 
     def _update_metrics(self, success: bool):
         """Helper method to update metrics"""
@@ -194,9 +190,6 @@ class GameLogic:
                 score=self.score_manager.score
             )
         self.metrics_manager.save_metrics()
-        print("\nFinal Metrics Summary:")
-        print("=" * 50)
-        self.metrics_manager.print_summary()
         
     def set_algorithm(self, algorithm: AlgorithmType):  
         """Set current algorithm"""  
@@ -294,6 +287,17 @@ class GameLogic:
             self.optimal_path_length,
             self.score_manager.moves_made
         )
+    
+    def get_live_score(self) -> float:  
+        """Calculate and return the current live score using ScoreManager's calculate_score"""  
+        if self.start_time:  
+            time_taken = (datetime.now() - self.start_time).total_seconds()  
+            return self.score_manager.calculate_score(  
+                time_taken=time_taken,  
+                nodes_explored=self.total_nodes_explored,  
+                path_length=self.score_manager.moves_made  
+            )  
+        return 0.0
 
     def reset(self):    
         """Reset entire game state"""    

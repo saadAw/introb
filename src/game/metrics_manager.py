@@ -172,19 +172,3 @@ class MetricsManager:
         algo_key = algorithm.name
         return self.metrics.get(maze_key, {}).get(algo_key)
 
-    def print_summary(self):
-        """Print a summary of all metrics"""
-        for maze_type, maze_metrics in self.metrics.items():
-            print(f"\nMaze Type: {maze_type}")
-            print("=" * 50)
-            for algo, metrics in maze_metrics.items():
-                print(f"\nAlgorithm: {algo}")
-                print(f"Total Runs: {metrics.total_runs}")
-                print(f"Success Rate: {(metrics.successful_runs / metrics.total_runs * 100):.2f}%")
-                print(f"Path Length: min={metrics.min_path_length}, avg={metrics.avg_path_length:.2f}, max={metrics.max_path_length}")
-                print(f"Completion Time: fastest={metrics.fastest_completion:.2f}s, avg={metrics.avg_completion_time:.2f}s, slowest={metrics.slowest_completion:.2f}s")
-                print(f"Nodes Explored: {metrics.avg_nodes_explored:.2f}")
-                print(f"Steps per Second: {metrics.avg_steps_per_second:.2f}")
-                print(f"Exploration Efficiency: {metrics.avg_exploration_efficiency:.2f}")
-                print(f"Scores: best={metrics.best_score:.2f}, avg={metrics.avg_score:.2f}")
-                print("-" * 30)
