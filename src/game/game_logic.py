@@ -1,3 +1,4 @@
+import math
 import pygame
 from typing import Tuple, Callable
 from src.config.constants import GameState, TIME_LIMIT, FPS, COLORS
@@ -22,18 +23,43 @@ class GameStateManager:
         return self.state
 
 class ScoreManager:
-    """Handles scoring logic"""
-    def __init__(self, optimal_path_length: int = 13):
-        self.score = 0
-        self.moves_made = 0
-        self.optimal_path_length = optimal_path_length
+    """Handles scoring logic"""  
+    def __init__(self, optimal_path_length: int = 13):  
+        self.score = 0  
+        self.moves_made = 0  
+        self.optimal_path_length = optimal_path_length  
+        self.nodes_explored = 0
 
-    def calculate_score(self, time_remaining: int):
-        """Calculate score based on time and efficiency"""
-        time_bonus = max(time_remaining // FPS, 0)
-        efficiency_bonus = max(0, self.optimal_path_length - self.moves_made) * 10
-        return time_bonus + efficiency_bonus
+    def calculate_score(self, time_taken: float, nodes_explored: int, path_length: int) -> float:
+        """
+        Calculate a normalized score (0-100) with more aggressive scaling for exploration efficiency
+        """
+        # Weights
+        PATH_WEIGHT = 0.35
+        EXPLORATION_WEIGHT = 0.45
+        TIME_WEIGHT = 0.20
 
+        # 1. Path Efficiency Score
+        path_ratio = self.optimal_path_length / max(path_length, 1)
+        path_score = min(100 * path_ratio, 100)
+
+        # 2. Exploration Efficiency Score - Completely revised
+        # Calculate nodes explored ratio (how many nodes per step in path)
+        nodes_per_step = nodes_explored / max(path_length, 1)
+        # Use logarithmic scaling to penalize high node exploration more severely
+        exploration_score = max(0, 100 - 20 * math.log10(nodes_per_step))
+
+        # 3. Time Efficiency Score
+        time_score = max(0, 100 - 15 * math.log10(max(time_taken, 0.1)))
+
+        # Calculate weighted final score
+        final_score = (
+            PATH_WEIGHT * path_score +
+            EXPLORATION_WEIGHT * exploration_score +
+            TIME_WEIGHT * time_score
+        )
+
+        return round(final_score, 2)
 
     def _update_metrics(self, success: bool):
         """Helper method to update metrics"""
@@ -209,13 +235,20 @@ class GameLogic:
                 )
                 self.metrics_manager.save_metrics()
 
-    def _update_metrics(self):  # Add this method  
+    def _update_metrics(self):
         """Update metrics during gameplay"""  
-        if self.metrics_manager.current_run:  
+        if self.metrics_manager.current_run:
+            time_taken = (datetime.now() - self.start_time).total_seconds() if self.start_time else 0
+            current_score = self.score_manager.calculate_score(
+                time_taken=time_taken,
+                nodes_explored=self.total_nodes_explored,
+                path_length=self.score_manager.moves_made
+            )
+
             self.metrics_manager.update_run(  
                 nodes_explored=self.total_nodes_explored,  
                 path_length=self.score_manager.moves_made,  
-                time_taken=(datetime.now() - self.start_time).total_seconds(),  
+                time_taken=time_taken,  
                 remaining_time=self.time_manager.remaining_seconds,  
                 total_time=self.time_manager.total_time  
             )
@@ -224,14 +257,19 @@ class GameLogic:
         """Check if robot has reached the goal"""  
         if robot_pos == goal_pos:  
             self.state_manager.state = GameState.WIN  
-            final_score = self.score_manager.calculate_score(self.time_manager.time_remaining)  
-            self.score_manager.score = final_score  
-
             time_taken = (datetime.now() - self.start_time).total_seconds() if self.start_time else 0  
 
-            # Use total_nodes_explored for consistency  
+            # Calculate final score using new scoring system
+            final_score = self.score_manager.calculate_score(
+                time_taken=time_taken,
+                nodes_explored=self.total_nodes_explored,
+                path_length=self.score_manager.moves_made
+            )
+            self.score_manager.score = final_score
+
+            # Update metrics
             self.metrics_manager.update_run(  
-                nodes_explored=self.total_nodes_explored,  # Changed from nodes_explored  
+                nodes_explored=self.total_nodes_explored,
                 path_length=self.score_manager.moves_made,  
                 time_taken=time_taken,  
                 remaining_time=self.time_manager.remaining_seconds,  
