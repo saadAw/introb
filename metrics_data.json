@@ -1,202 +1,58 @@
 {
     "DIAGONAL": {
-        "DIJKSTRA": {
-            "total_runs": 1,
-            "successful_runs": 1,
-            "avg_path_length": 208,
-            "avg_completion_time": 14.117016,
-            "avg_nodes_explored": 1017534,
-            "avg_score": 171
-        },
-        "BFS": {
-            "total_runs": 1,
-            "successful_runs": 1,
-            "avg_path_length": 208,
-            "avg_completion_time": 13.117019,
-            "avg_nodes_explored": 1082964,
-            "avg_score": 171
-        },
-        "QL": {
-            "total_runs": 1,
-            "successful_runs": 1,
-            "avg_path_length": 264,
-            "avg_completion_time": 17.634848,
-            "avg_nodes_explored": 6506,
-            "avg_score": 163
-        },
-        "SARSA": {
-            "total_runs": 1,
-            "successful_runs": 1,
-            "avg_path_length": 236,
-            "avg_completion_time": 15.729273,
-            "avg_nodes_explored": 2376,
-            "avg_score": 165
-        },
         "ASTAR": {
             "total_runs": 1,
             "successful_runs": 1,
             "avg_path_length": 208,
-            "avg_completion_time": 14.754542,
-            "avg_nodes_explored": 310258,
-            "avg_score": 167
-        },
-        "GBFS": {
-            "total_runs": 1,
-            "successful_runs": 1,
-            "avg_path_length": 276,
-            "avg_completion_time": 18.462737,
-            "avg_nodes_explored": 103550,
-            "avg_score": 162
-        }
-    },
-    "SNAKE": {
-        "ASTAR": {
-            "total_runs": 1,
-            "successful_runs": 1,
-            "avg_path_length": 226,
-            "avg_completion_time": 15.521379,
-            "avg_nodes_explored": 561550,
-            "avg_score": 168
+            "avg_completion_time": 14.730992,
+            "avg_nodes_explored": 313242,
+            "avg_score": 21.33,
+            "avg_steps_per_second": 14.11,
+            "avg_exploration_efficiency": 0.66,
+            "min_path_length": 208,
+            "max_path_length": 208,
+            "fastest_completion": 14.730992,
+            "slowest_completion": 14.730992,
+            "best_score": 21.33,
+            "memory_start_mb": 52.71,
+            "memory_peak_mb": 53.84,
+            "memory_increase_mb": 1.13
         },
         "DIJKSTRA": {
             "total_runs": 1,
             "successful_runs": 1,
-            "avg_path_length": 226,
-            "avg_completion_time": 15.746251,
-            "avg_nodes_explored": 1057967,
-            "avg_score": 170
-        },
-        "GBFS": {
-            "total_runs": 1,
-            "successful_runs": 1,
-            "avg_path_length": 456,
-            "avg_completion_time": 32.946521,
-            "avg_nodes_explored": 892760,
-            "avg_score": 150
-        },
-        "BFS": {
-            "total_runs": 1,
-            "successful_runs": 1,
-            "avg_path_length": 226,
-            "avg_completion_time": 15.16718,
-            "avg_nodes_explored": 1157331,
-            "avg_score": 169
-        },
-        "QL": {
-            "total_runs": 1,
-            "successful_runs": 1,
-            "avg_path_length": 318,
-            "avg_completion_time": 21.27913,
-            "avg_nodes_explored": 6954,
-            "avg_score": 159
-        },
-        "SARSA": {
-            "total_runs": 1,
-            "successful_runs": 0,
-            "avg_path_length": 0.0,
-            "avg_completion_time": 0.0,
-            "avg_nodes_explored": 0.0,
-            "avg_score": 0.0
-        }
-    },
-    "OPEN": {
-        "ASTAR": {
-            "total_runs": 1,
-            "successful_runs": 1,
-            "avg_path_length": 122,
-            "avg_completion_time": 8.074954,
-            "avg_nodes_explored": 42988,
-            "avg_score": 172
-        },
-        "DIJKSTRA": {
-            "total_runs": 1,
-            "successful_runs": 1,
-            "avg_path_length": 122,
-            "avg_completion_time": 8.274731,
-            "avg_nodes_explored": 434344,
-            "avg_score": 174
-        },
-        "GBFS": {
-            "total_runs": 1,
-            "successful_runs": 1,
-            "avg_path_length": 142,
-            "avg_completion_time": 9.457769,
-            "avg_nodes_explored": 22193,
-            "avg_score": 171
-        },
-        "BFS": {
-            "total_runs": 1,
-            "successful_runs": 1,
-            "avg_path_length": 122,
-            "avg_completion_time": 8.246226,
-            "avg_nodes_explored": 527388,
-            "avg_score": 174
-        },
-        "QL": {
-            "total_runs": 1,
-            "successful_runs": 1,
-            "avg_path_length": 158,
-            "avg_completion_time": 10.542144,
-            "avg_nodes_explored": 7622,
-            "avg_score": 170
+            "avg_path_length": 208,
+            "avg_completion_time": 14.148927,
+            "avg_nodes_explored": 1014007,
+            "avg_score": 19.45,
+            "avg_steps_per_second": 14.69,
+            "avg_exploration_efficiency": 0.21,
+            "min_path_length": 208,
+            "max_path_length": 208,
+            "fastest_completion": 14.148927,
+            "slowest_completion": 14.148927,
+            "best_score": 19.45,
+            "memory_start_mb": 53.86,
+            "memory_peak_mb": 54.12,
+            "memory_increase_mb": 0.26
         },
         "SARSA": {
             "total_runs": 1,
             "successful_runs": 1,
-            "avg_path_length": 134,
-            "avg_completion_time": 8.883477,
-            "avg_nodes_explored": 894,
-            "avg_score": 172
-        }
-    },
-    "BOTTLENECK": {
-        "ASTAR": {
-            "total_runs": 1,
-            "successful_runs": 1,
-            "avg_path_length": 360,
-            "avg_completion_time": 26.559325,
-            "avg_nodes_explored": 1670556,
-            "avg_score": 164
-        },
-        "DIJKSTRA": {
-            "total_runs": 1,
-            "successful_runs": 1,
-            "avg_path_length": 360,
-            "avg_completion_time": 28.455001,
-            "avg_nodes_explored": 2608116,
-            "avg_score": 166
-        },
-        "GBFS": {
-            "total_runs": 1,
-            "successful_runs": 1,
-            "avg_path_length": 440,
-            "avg_completion_time": 29.361175,
-            "avg_nodes_explored": 1258355,
-            "avg_score": 159
-        },
-        "BFS": {
-            "total_runs": 1,
-            "successful_runs": 1,
-            "avg_path_length": 360,
-            "avg_completion_time": 25.415634,
-            "avg_nodes_explored": 2716016,
-            "avg_score": 165
-        },
-        "QL": {
-            "total_runs": 1,
-            "successful_runs": 0,
-            "avg_path_length": 0.0,
-            "avg_completion_time": 0.0,
-            "avg_nodes_explored": 0.0,
-            "avg_score": 0.0
-        },
-        "SARSA": {
-            "total_runs": 1,
-            "successful_runs": 0,
-            "avg_path_length": 0.0,
-            "avg_completion_time": 0.0,
-            "avg_nodes_explored": 0.0,
-            "avg_score": 0.0
+            "avg_path_length": 240,
+            "avg_completion_time": 15.997609,
+            "avg_nodes_explored": 1948,
+            "avg_score": 29.79,
+            "avg_steps_per_second": 15.0,
+            "avg_exploration_efficiency": 123.2,
+            "min_path_length": 240,
+            "max_path_length": 240,
+            "fastest_completion": 15.997609,
+            "slowest_completion": 15.997609,
+            "best_score": 29.79,
+            "memory_start_mb": 56.84,
+            "memory_peak_mb": 56.86,
+            "memory_increase_mb": 0
         }
     }
 }

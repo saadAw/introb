@@ -300,13 +300,13 @@ class GameRunner:
             self.cleanup()
             sys.exit(1)
             
-    def cleanup(self):
-        """Clean up pygame resources"""
-        try:
-            if hasattr(self, 'game_logic'):
-                self.game_logic.cleanup()
-            pygame.quit()
-        except Exception as e:
+    def cleanup(self):  
+        """Clean up pygame resources"""  
+        try:  
+            if hasattr(self, 'game_logic'):  
+                self.game_logic.cleanup()  # This will handle memory tracking cleanup  
+            pygame.quit()  
+        except Exception as e:  
             print(f"Error during cleanup: {e}")
 
     def setup_algorithms(self) -> Dict[AlgorithmType, Callable]:  
@@ -343,30 +343,30 @@ class GameRunner:
         pathfinder.set_game_logic(self.game_logic)  
         return pathfinder
 
-    def run(self):
-        """Main game loop"""
-        try:
-            while self.event_handler.running:
-                # Handle events and check if game should continue
-                self.event_handler.running = self.event_handler.handle_events()
+    def run(self):  
+        """Main game loop"""  
+        try:  
+            while self.event_handler.running:  
+                # Handle events and check if game should continue  
+                self.event_handler.running = self.event_handler.handle_events()  
 
-                # Handle input based on current algorithm
-                self.event_handler.handle_input()
+                # Handle input based on current algorithm  
+                self.event_handler.handle_input()  
 
-                # Update game state
-                self.state_updater.update()
+                # Update game state (GameLogic handles memory tracking internally)  
+                self.state_updater.update()  
 
-                # Render game
-                self.renderer.draw(
-                    self.game_logic, 
-                    self.event_handler.current_algorithm
-                )
+                # Render game  
+                self.renderer.draw(  
+                    self.game_logic,   
+                    self.event_handler.current_algorithm  
+                )  
 
-                # Control frame rate
-                self.clock.tick(FPS)
-        except Exception as e:
-            print(f"Error in main game loop: {e}")
-        finally:
+                # Control frame rate  
+                self.clock.tick(FPS)  
+        except Exception as e:  
+            print(f"Error in main game loop: {e}")  
+        finally:  
             self.cleanup()
 
 

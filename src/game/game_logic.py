@@ -3,7 +3,7 @@ import pygame
 from typing import Tuple, Callable
 from src.config.constants import GameState, TIME_LIMIT, FPS, COLORS
 from src.config.types import AlgorithmType, TestScenario
-from src.game.metrics_manager import MetricsManager
+from src.game.metrics_manager import MemoryTracker, MetricsManager
 from datetime import datetime
 
 class GameStateManager:
@@ -182,13 +182,18 @@ class GameLogic:
         self.nodes_explored = 0
         self.start_time = None
         
-    def cleanup(self):
-        """Clean up resources and save final metrics"""
-        if self.metrics_manager.current_run:
-            self.metrics_manager.end_run(
-                success=self.state_manager.state == GameState.WIN,
-                score=self.score_manager.score
-            )
+        self.memory_tracker = MemoryTracker()
+
+
+    def cleanup(self):  
+        """Clean up resources and save final metrics"""  
+        if self.metrics_manager.current_run:  
+            memory_stats = self.memory_tracker.get_memory_stats()  
+            self.metrics_manager.end_run(  
+                success=self.state_manager.state == GameState.WIN,  
+                score=self.score_manager.score,  
+                memory_stats=memory_stats  # Add this line  
+            )  
         self.metrics_manager.save_metrics()
         
     def set_algorithm(self, algorithm: AlgorithmType):  
@@ -196,6 +201,8 @@ class GameLogic:
         self.algorithm_tracker.set_algorithm(algorithm)  
         self.nodes_explored = 0  
         self.start_time = datetime.now()  
+        # Start memory tracking  
+        self.memory_tracker.start_tracking()
         # Start metrics collection  
         self.metrics_manager.start_run(algorithm, self.current_maze)
 
@@ -228,22 +235,26 @@ class GameLogic:
                 )
                 self.metrics_manager.save_metrics()
 
-    def _update_metrics(self):
-        """Update metrics during gameplay"""  
-        if self.metrics_manager.current_run:
-            time_taken = (datetime.now() - self.start_time).total_seconds() if self.start_time else 0
-            current_score = self.score_manager.calculate_score(
-                time_taken=time_taken,
-                nodes_explored=self.total_nodes_explored,
-                path_length=self.score_manager.moves_made
-            )
-
-            self.metrics_manager.update_run(  
-                nodes_explored=self.total_nodes_explored,  
-                path_length=self.score_manager.moves_made,  
+    def _update_metrics(self):  
+        """Update metrics during gameplay"""    
+        if self.metrics_manager.current_run:  
+            time_taken = (datetime.now() - self.start_time).total_seconds() if self.start_time else 0  
+            current_score = self.score_manager.calculate_score(  
                 time_taken=time_taken,  
-                remaining_time=self.time_manager.remaining_seconds,  
-                total_time=self.time_manager.total_time  
+                nodes_explored=self.total_nodes_explored,  
+                path_length=self.score_manager.moves_made  
+            )  
+
+            # Get current memory stats  
+            memory_stats = self.memory_tracker.get_memory_stats()  
+
+            self.metrics_manager.update_run(    
+                nodes_explored=self.total_nodes_explored,    
+                path_length=self.score_manager.moves_made,    
+                time_taken=time_taken,    
+                remaining_time=self.time_manager.remaining_seconds,    
+                total_time=self.time_manager.total_time,  
+                memory_stats=memory_stats  # Add this line  
             )
 
     def check_win_condition(self, robot_pos: Tuple[int, int], goal_pos: Tuple[int, int]):  
@@ -260,13 +271,17 @@ class GameLogic:
             )
             self.score_manager.score = final_score
 
+            # Get memory stats  
+            memory_stats = self.memory_tracker.get_memory_stats()
+
             # Update metrics
             self.metrics_manager.update_run(  
                 nodes_explored=self.total_nodes_explored,
                 path_length=self.score_manager.moves_made,  
                 time_taken=time_taken,  
                 remaining_time=self.time_manager.remaining_seconds,  
-                total_time=self.time_manager.total_time  
+                total_time=self.time_manager.total_time,
+                memory_stats=memory_stats
             )  
 
             self.metrics_manager.end_run(True, final_score)  
@@ -299,13 +314,14 @@ class GameLogic:
             )  
         return 0.0
 
-    def reset(self):    
-        """Reset entire game state"""    
-        self.state_manager.reset()    
-        self.score_manager.reset()    
-        self.time_manager.reset()    
-        self.algorithm_tracker.reset()    
+    def reset(self):      
+        """Reset entire game state"""      
+        self.state_manager.reset()      
+        self.score_manager.reset()      
+        self.time_manager.reset()      
+        self.algorithm_tracker.reset()      
         self.reset_nodes_explored()  
+        self.memory_tracker = MemoryTracker()  # Add this line  
         return self.state_manager.state
 
     # Convenience properties and methods
