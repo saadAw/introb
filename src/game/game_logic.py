@@ -34,16 +34,13 @@ class ScoreManager:
         """  
         Calculate a normalized score (0-100) based on path efficiency, exploration, and time  
         """  
-        # Weights  
-        PATH_WEIGHT = 0.65       # Slightly increased  
-        EXPLORATION_WEIGHT = 0.25 # Same  
-        TIME_WEIGHT = 0.10       # Slightly decreased  
+        PATH_WEIGHT = 0.65 
+        EXPLORATION_WEIGHT = 0.25
+        TIME_WEIGHT = 0.10 
 
-        # 1. Path Efficiency Score (with stronger exponential penalty)  
         path_ratio = self.optimal_path_length / max(path_length, 1)  
         path_score = min(100 * (path_ratio ** 3.5), 100)  # Increased exponent from 3 to 3.5  
 
-        # Rest remains the same  
         nodes_per_step = nodes_explored / max(path_length, 1)  
         exploration_score = max(0, 100 - 15 * math.log10(nodes_per_step))  
         time_score = max(0, 100 - 15 * math.log10(max(time_taken, 0.1)))  
@@ -65,7 +62,6 @@ class ScoreManager:
             metrics.path_cost = self.score
             metrics.nodes_explored = self.nodes_explored
             self.metrics_manager.end_run(self.current_algorithm, success)
-            # Update metrics on win
             if self.metrics_manager and self.current_algorithm:
                 self._update_metrics(success=True)
 
@@ -84,14 +80,14 @@ class TimeManager:
         :param total_time: Total time in seconds  
         """  
         self.total_time = total_time  
-        self.time_remaining = total_time * FPS  # Convert to frames  
+        self.time_remaining = total_time * FPS  
         self.frame_count = 0  
 
     def update(self):  
         """Decrement time remaining"""  
         if self.time_remaining > 0:  
             self.frame_count += 1  
-            if self.frame_count >= FPS:  # Decrement every second  
+            if self.frame_count >= FPS: 
                 self.time_remaining -= FPS  
                 self.frame_count = 0  
 
@@ -145,40 +141,36 @@ class RewardCalculator:
         moves_made: int
     ) -> float:
         """Calculate reward based on agent's movement"""
-        # Reaching goal
         if new_pos == goal_pos:
             efficiency_bonus = max(0, optimal_path_length - moves_made)
             return 100 + efficiency_bonus * 10
 
-        # Time expired
         if time_remaining <= 0:
             return -100
 
-        # Distance-based reward
         old_distance = abs(old_pos[0] - goal_pos[0]) + abs(old_pos[1] - goal_pos[1])
         new_distance = abs(new_pos[0] - goal_pos[0]) + abs(new_pos[1] - goal_pos[1])
 
         if new_distance < old_distance:
-            return 1  # Moving closer
+            return 1
         elif new_distance > old_distance:
-            return -1  # Moving away
+            return -1
 
-        return -0.1  # Neutral movement
+        return -0.1
 
 class GameLogic:
     def __init__(self, map_size: Tuple[int, int] = (10, 10), optimal_path_length: int = 13):
-        # Composition over inheritance
         self.state_manager = GameStateManager()
         self.score_manager = ScoreManager(optimal_path_length)
         self.time_manager = TimeManager(TIME_LIMIT)
         self.algorithm_tracker = AlgorithmTracker()
-        self.current_maze = TestScenario.DIAGONAL  # Add this line
+        self.current_maze = TestScenario.DIAGONAL
 
         self.map_size = map_size
         self.optimal_path_length = optimal_path_length
         
         self.metrics_manager = MetricsManager()
-        self.total_nodes_explored = 0  # Add this line  
+        self.total_nodes_explored = 0  
         self.nodes_explored = 0
         self.start_time = None
         
@@ -201,9 +193,7 @@ class GameLogic:
         self.algorithm_tracker.set_algorithm(algorithm)  
         self.nodes_explored = 0  
         self.start_time = datetime.now()  
-        # Start memory tracking  
         self.memory_tracker.start_tracking()
-        # Start metrics collection  
         self.metrics_manager.start_run(algorithm, self.current_maze)
 
     def increment_nodes_explored(self):  
@@ -225,10 +215,8 @@ class GameLogic:
             self.time_manager.update()  
             self._update_metrics()
 
-            # Check for time out  
             if self.time_manager.is_time_expired():  
                 self.state_manager.state = GameState.LOSE
-                # Add metrics for failed run
                 self.metrics_manager.end_run(
                     success=False,
                     score=self.score_manager.score
@@ -245,7 +233,6 @@ class GameLogic:
                 path_length=self.score_manager.moves_made  
             )  
 
-            # Get current memory stats  
             memory_stats = self.memory_tracker.get_memory_stats()  
 
             self.metrics_manager.update_run(    
@@ -254,7 +241,7 @@ class GameLogic:
                 time_taken=time_taken,    
                 remaining_time=self.time_manager.remaining_seconds,    
                 total_time=self.time_manager.total_time,  
-                memory_stats=memory_stats  # Add this line  
+                memory_stats=memory_stats
             )
 
     def check_win_condition(self, robot_pos: Tuple[int, int], goal_pos: Tuple[int, int]):  
@@ -263,7 +250,6 @@ class GameLogic:
             self.state_manager.state = GameState.WIN  
             time_taken = (datetime.now() - self.start_time).total_seconds() if self.start_time else 0  
 
-            # Calculate final score using new scoring system
             final_score = self.score_manager.calculate_score(
                 time_taken=time_taken,
                 nodes_explored=self.total_nodes_explored,
@@ -271,10 +257,8 @@ class GameLogic:
             )
             self.score_manager.score = final_score
 
-            # Get memory stats  
             memory_stats = self.memory_tracker.get_memory_stats()
 
-            # Update metrics
             self.metrics_manager.update_run(  
                 nodes_explored=self.total_nodes_explored,
                 path_length=self.score_manager.moves_made,  
@@ -290,10 +274,8 @@ class GameLogic:
 
     def calculate_reward(self, old_pos: Tuple[int, int], new_pos: Tuple[int, int], goal_pos: Tuple[int, int]) -> float:
         """Calculate reward for an action"""
-        # Increment moves
         self.score_manager.moves_made += 1
 
-        # Calculate and return reward
         return RewardCalculator.calculate_reward(
             old_pos, 
             new_pos, 
@@ -321,10 +303,9 @@ class GameLogic:
         self.time_manager.reset()      
         self.algorithm_tracker.reset()      
         self.reset_nodes_explored()  
-        self.memory_tracker = MemoryTracker()  # Add this line  
+        self.memory_tracker = MemoryTracker()
         return self.state_manager.state
 
-    # Convenience properties and methods
     @property
     def state(self):
         return self.state_manager.state
