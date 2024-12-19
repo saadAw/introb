@@ -28,6 +28,10 @@ class RunMetrics:
     memory_start_mb: float = 0.0
     memory_peak_mb: float = 0.0
     memory_increase_mb: float = 0.0
+    # Add CPU metrics  
+    cpu_usage_avg: float = 0.0  
+    cpu_usage_peak: float = 0.0  
+    cpu_core_count: int = 0
 
 @dataclass  
 class AlgorithmMetrics:  
@@ -49,6 +53,10 @@ class AlgorithmMetrics:
     memory_start_mb: float = 0.0  
     memory_peak_mb: float = 0.0  
     memory_increase_mb: float = 0.0  
+    # Add CPU metrics  
+    avg_cpu_usage: float = 0.0  
+    peak_cpu_usage: float = 0.0  
+    cpu_core_count: int = 0
     runs: List[RunMetrics] = field(default_factory=list)
 
 class MemoryTracker:  
@@ -87,13 +95,44 @@ class MemoryTracker:
             "peak_memory_mb": round(self.peak_memory, 2),  
             "memory_increase_mb": round(memory_increase, 2)  
         }
+    
+class CPUTracker:  
+    def __init__(self):  
+        self.process = psutil.Process(os.getpid())  
+        self.cpu_percentages = []  
+        self.peak_cpu = 0.0  
+        self.core_count = psutil.cpu_count()  
+
+    def start_tracking(self):  
+        """Start tracking CPU usage"""  
+        self.cpu_percentages = []  
+        self.peak_cpu = 0.0  
+        # Get initial CPU percentage (first call usually returns 0)  
+        self.process.cpu_percent()  
+
+    def update_tracking(self):  
+        """Update CPU usage tracking"""  
+        current_cpu = self.process.cpu_percent() / psutil.cpu_count()  # Per core percentage  
+        self.cpu_percentages.append(current_cpu)  
+        self.peak_cpu = max(self.peak_cpu, current_cpu)  
+
+    def get_cpu_stats(self):  
+        """Get CPU statistics"""  
+        avg_cpu = statistics.mean(self.cpu_percentages) if self.cpu_percentages else 0.0
+        
+        return {  
+            "cpu_usage_avg": round(avg_cpu, 2),  
+            "cpu_usage_peak": round(self.peak_cpu, 2),  
+            "cpu_core_count": self.core_count  
+        }
 
 class MetricsManager:  
     def __init__(self, save_file: str = "metrics_data.json"):  
         self.save_file = save_file  
         self.metrics: Dict[str, Dict[str, AlgorithmMetrics]] = {}  
         self.current_run: Optional[RunMetrics] = None  
-        self.load_metrics()  
+        self.cpu_tracker = CPUTracker()  # Add CPU tracker  
+        self.load_metrics()
 
     def start_run(self, algorithm: AlgorithmType, maze_type: TestScenario):  
         """Start tracking a new algorithm run"""  
@@ -101,10 +140,11 @@ class MetricsManager:
             algorithm=algorithm,  
             maze_type=maze_type,  
             start_time=datetime.now()  
-        )
+        )  
+        self.cpu_tracker.start_tracking()  # Start CPU tracking
 
-    def update_run(self, nodes_explored: int, path_length: int, time_taken: float,     
-              remaining_time: int, total_time: int, memory_stats: dict = None):  
+    def update_run(self, nodes_explored: int, path_length: int, time_taken: float,  
+                  remaining_time: int, total_time: int, memory_stats: dict = None):
         if self.current_run:  
             # Update basic metrics  
             self.current_run.nodes_explored = nodes_explored  
@@ -119,6 +159,9 @@ class MetricsManager:
                 self.current_run.memory_peak_mb = memory_stats["peak_memory_mb"]  
                 self.current_run.memory_increase_mb = memory_stats["memory_increase_mb"]  
 
+            # Update CPU tracking  
+            self.cpu_tracker.update_tracking()
+
             # Calculate derived metrics  
             if time_taken > 0:  
                 self.current_run.steps_per_second = path_length / time_taken  
@@ -128,7 +171,12 @@ class MetricsManager:
 
     def end_run(self, success: bool, score: float):
         """End current run and save metrics"""
-        if self.current_run:
+        if self.current_run:  
+            # Get CPU stats at the end of the run  
+            cpu_stats = self.cpu_tracker.get_cpu_stats()  
+            self.current_run.cpu_usage_avg = cpu_stats["cpu_usage_avg"]  
+            self.current_run.cpu_usage_peak = cpu_stats["cpu_usage_peak"]  
+            self.current_run.cpu_core_count = cpu_stats["cpu_core_count"]
             self.current_run.end_time = datetime.now()
             self.current_run.success = success
             self.current_run.score = score
@@ -162,7 +210,7 @@ class MetricsManager:
     def _update_averages(self, metrics: AlgorithmMetrics):  
         """Update average metrics"""  
         successful_runs = [run for run in metrics.runs if run.success]  
-        if successful_runs:  
+        if successful_runs:
             metrics.avg_path_length = statistics.mean(run.path_length for run in successful_runs)  
             metrics.avg_completion_time = statistics.mean(run.completion_time for run in successful_runs)  
             metrics.avg_nodes_explored = statistics.mean(run.nodes_explored for run in successful_runs)  
@@ -182,12 +230,17 @@ class MetricsManager:
             metrics.memory_peak_mb = max(run.memory_peak_mb for run in successful_runs)  
             metrics.memory_increase_mb = statistics.mean(run.memory_increase_mb for run in successful_runs)
 
+            # Update CPU metrics  
+            metrics.avg_cpu_usage = statistics.mean(run.cpu_usage_avg for run in successful_runs)  
+            metrics.peak_cpu_usage = max(run.cpu_usage_peak for run in successful_runs)  
+            metrics.cpu_core_count = successful_runs[0].cpu_core_count
+
     def save_metrics(self):  
         data = {}  
         for maze_type, maze_metrics in self.metrics.items():  
             data[maze_type] = {}  
             for algo, metrics in maze_metrics.items():  
-                data[maze_type][algo] = {  
+                data[maze_type][algo] = {
                     'total_runs': metrics.total_runs,  
                     'successful_runs': metrics.successful_runs,  
                     'avg_path_length': round(metrics.avg_path_length, 2),  
@@ -203,7 +256,10 @@ class MetricsManager:
                     'best_score': round(metrics.best_score, 2),  
                     'memory_start_mb': round(metrics.memory_start_mb, 2),  
                     'memory_peak_mb': round(metrics.memory_peak_mb, 2),  
-                    'memory_increase_mb': round(metrics.memory_increase_mb, 2)  
+                    'memory_increase_mb': round(metrics.memory_increase_mb, 2),
+                    'avg_cpu_usage': round(metrics.avg_cpu_usage, 2),  
+                    'peak_cpu_usage': round(metrics.peak_cpu_usage, 2),  
+                    'cpu_core_count': metrics.cpu_core_count
                 }  
 
         with open(self.save_file, 'w') as f:  
