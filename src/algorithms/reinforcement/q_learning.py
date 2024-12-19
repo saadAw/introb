@@ -21,20 +21,20 @@ class QLearningPathfinder:
         'REPLAY_BATCH_SIZE': 32,          # Batch size for experience replay
 
         # Reward structure
-        'REWARD_GOAL': 100.0,            # Reward for reaching goal
+        'REWARD_GOAL': 50000.0,            # Reward for reaching goal
         'REWARD_WALL': -10.0,             # Penalty for hitting wall
         'REWARD_LOOP': -10.0,             # Penalty for revisiting states
-        'REWARD_CLOSER': 0.5,            # Reward for moving closer to goal
+        'REWARD_CLOSER': 0.0,            # Reward for moving closer to goal
         'REWARD_FARTHER': -0.5,          # Penalty for moving away from goal
         'EXPLORATION_BONUS_FACTOR': 1,  # Factor for exploration bonus
 
         # Training settings
         'DEFAULT_EPISODES': 1000,         # Default number of training episodes
-        'MAX_STEPS_PER_EPISODE': 1500,    # Maximum steps per episode
+        'MAX_STEPS_PER_EPISODE': 5000,    # Maximum steps per episode
         'PROGRESS_PRINT_INTERVAL': 100,    # Episodes between progress updates
 
         # Early Stopping
-        'EARLY_STOPPING_PATIENCE': 300,     # Number of epochs to wait for improvement  
+        'EARLY_STOPPING_PATIENCE': 100,     # Number of epochs to wait for improvement  
         'EARLY_STOPPING_MIN_DELTA': 0.1,   # Minimum change to qualify as an improvement  
         'EARLY_STOPPING_WINDOW': 100,      # Window size for calculating average reward  
         'MIN_EPISODES': 100,              # Minimum number of episodes before early stopping  
