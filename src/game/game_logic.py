@@ -184,6 +184,10 @@ class GameLogic:
         self.nodes_explored += 1  
         self.total_nodes_explored += 1
         
+    def reset_nodes_explored(self):    
+        """Reset both node exploration counters to 0"""    
+        self.nodes_explored = 0  
+        self.total_nodes_explored = 0
 
     def set_maze_type(self, maze_type: TestScenario):
         """Set current maze type"""
@@ -253,12 +257,13 @@ class GameLogic:
             self.score_manager.moves_made
         )
 
-    def reset(self):  
-        """Reset entire game state"""  
-        self.state_manager.reset()  
-        self.score_manager.reset()  
-        self.time_manager.reset()  
-        self.algorithm_tracker.reset()  
+    def reset(self):    
+        """Reset entire game state"""    
+        self.state_manager.reset()    
+        self.score_manager.reset()    
+        self.time_manager.reset()    
+        self.algorithm_tracker.reset()    
+        self.reset_nodes_explored()  
         return self.state_manager.state
 
     # Convenience properties and methods

@@ -74,6 +74,17 @@ class QLearningPathfinder:
         self.episode_rewards = []
         self.path_lengths = []
 
+        self.game_logic = None
+
+    def set_game_logic(self, game_logic):  
+        """  
+        Set reference to game logic for metrics tracking.  
+
+        Args:  
+            game_logic: GameLogic instance for tracking metrics  
+        """  
+        self.game_logic = game_logic
+
     def get_state_features(self, pos: Tuple[int, int], goal: Tuple[int, int]) -> str:
         """Enhanced state representation"""
         x, y = pos
@@ -116,16 +127,26 @@ class QLearningPathfinder:
 
         return valid_actions
 
-    def get_next_state(self, state: Tuple[int, int], action: str) -> Tuple[int, int]:
-        """Get next state given current state and action"""
-        dx, dy = self.action_deltas[action]
-        next_x = state[0] + dx
-        next_y = state[1] + dy
+    def get_next_state(self, state: Tuple[int, int], action: str) -> Tuple[int, int]:  
+        """Get next state given current state and action"""  
+        dx, dy = self.action_deltas[action]  
+        next_x = state[0] + dx  
+        next_y = state[1] + dy  
+        next_state = (next_x, next_y)
 
-        if (0 <= next_x < self.width and 
-            0 <= next_y < self.height and 
-            self.game_map.grid[next_y][next_x] != MapSymbols.OBSTACLE):
-            return (next_x, next_y)
+        # Only count if it's a valid, new state
+        if (0 <= next_x < self.width and   
+            0 <= next_y < self.height and   
+            self.game_map.grid[next_y][next_x] != MapSymbols.OBSTACLE and
+            self.game_logic and 
+            next_state not in self.state_visits):  
+            self.game_logic.increment_nodes_explored()
+            self.state_visits[next_state] = 1
+
+        if (0 <= next_x < self.width and   
+            0 <= next_y < self.height and   
+            self.game_map.grid[next_y][next_x] != MapSymbols.OBSTACLE):  
+            return (next_x, next_y)  
         return state
 
     def get_reward(self, current_state: Tuple[int, int], 
@@ -231,7 +252,6 @@ class QLearningPathfinder:
                     self.previous_states.pop(0)  
 
                 state_key = self.get_state_features(current_state, goal)  
-                self.state_visits[state_key] += 1  
 
                 episode_reward += reward  
                 path_length += 1  

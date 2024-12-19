@@ -74,6 +74,17 @@ class SARSAPathfinder:
         self.episode_rewards = []
         self.path_lengths = []
 
+        self.game_logic = None
+
+    def set_game_logic(self, game_logic):  
+        """  
+        Set reference to game logic for metrics tracking.  
+
+        Args:  
+            game_logic: GameLogic instance for tracking metrics  
+        """  
+        self.game_logic = game_logic
+
     def get_state_features(self, pos: Tuple[int, int], goal: Tuple[int, int]) -> str:
         """Enhanced state representation with safety considerations"""
         x, y = pos
@@ -119,18 +130,24 @@ class SARSAPathfinder:
 
         return valid_actions
 
-    def get_next_state(self, state: Tuple[int, int], action: str) -> Tuple[int, int]:
-        """Get next state given current state and action"""
-        dx, dy = self.action_deltas[action]
-        next_x = state[0] + dx
-        next_y = state[1] + dy
+    def get_next_state(self, state: Tuple[int, int], action: str) -> Tuple[int, int]:  
+        """Get next state given current state and action"""  
+        dx, dy = self.action_deltas[action]  
+        next_x = state[0] + dx  
+        next_y = state[1] + dy  
 
-        if (0 <= next_x < self.width and 
-            0 <= next_y < self.height and 
-            self.game_map.grid[next_y][next_x] != MapSymbols.OBSTACLE):
-            return (next_x, next_y)
+        # Increment nodes explored counter when checking a new state  
+        state_key = (next_x, next_y)  
+        if self.game_logic and state_key not in self.state_visits:  
+            self.game_logic.increment_nodes_explored()  
+            self.state_visits[state_key] = 1  
+
+        if (0 <= next_x < self.width and   
+            0 <= next_y < self.height and   
+            self.game_map.grid[next_y][next_x] != MapSymbols.OBSTACLE):  
+            return (next_x, next_y)  
         return state
-
+    
     def get_reward(self, current_state: Tuple[int, int], 
                   next_state: Tuple[int, int], 
                   goal: Tuple[int, int]) -> float:
@@ -186,10 +203,11 @@ class SARSAPathfinder:
         return max(q_values.items(), key=lambda x: x[1])[0]
 
     def train(self, start: Tuple[int, int], goal: Tuple[int, int], 
-              episodes: int = None, max_steps: int = None) -> None:
+          episodes: int = None, max_steps: int = None) -> None:
         """SARSA training process"""
         max_steps = max_steps or self.PARAMS['MAX_STEPS_PER_EPISODE']
         self.current_goal = goal
+        self.state_visits = {}  # Reset state visits at start of training
 
         best_avg_reward = float('-inf')
         patience_counter = 0
@@ -204,26 +222,33 @@ class SARSAPathfinder:
             episode_reward = 0
             path_length = 0
 
-            # Get initial action
+            # Count start state only if not visited before
+            if self.game_logic and current_state not in self.state_visits:
+                self.game_logic.increment_nodes_explored()
+                self.state_visits[current_state] = 1
+
             valid_actions = self.get_valid_actions(current_state)
             current_action = self.choose_action(current_state, valid_actions)
 
             for step in range(max_steps):
+                # Get and count next state
                 next_state = self.get_next_state(current_state, current_action)
+                if self.game_logic and next_state not in self.state_visits:
+                    self.game_logic.increment_nodes_explored()
+                    self.state_visits[next_state] = 1
+
                 reward = self.get_reward(current_state, next_state, goal)
 
-                # Get next action (this is where SARSA differs from Q-learning)
                 next_valid_actions = self.get_valid_actions(next_state)
                 next_action = self.choose_action(next_state, next_valid_actions)
 
                 # SARSA update
                 state_key = self.get_state_features(current_state, goal)
                 next_state_key = self.get_state_features(next_state, goal)
-                
+
                 current_q = self.q_table[state_key][current_action]
                 next_q = self.q_table[next_state_key][next_action]
 
-                # Update Q-value
                 self.q_table[state_key][current_action] = current_q + \
                     self.learning_rate_start * (reward + self.discount_factor * next_q - current_q)
 
@@ -240,13 +265,13 @@ class SARSAPathfinder:
                 current_state = next_state
                 current_action = next_action
 
+                # Decay epsilon
+                self.epsilon = max(self.PARAMS['EPSILON_MIN'],
+                                self.epsilon * self.PARAMS['EPSILON_DECAY'])
+
             # Record episode results
             self.episode_rewards.append(episode_reward)
             self.path_lengths.append(path_length)
-
-            # Decay epsilon
-            self.epsilon = max(self.PARAMS['EPSILON_MIN'],
-                             self.epsilon * self.PARAMS['EPSILON_DECAY'])
 
             # Early stopping check
             if episode >= self.PARAMS['MIN_EPISODES']:
@@ -255,7 +280,7 @@ class SARSAPathfinder:
                 if (episode + 1) % self.PARAMS['PROGRESS_PRINT_INTERVAL'] == 0:
                     avg_length = np.mean(self.path_lengths[-window_size:])
                     print(f"Episode {episode + 1}: Avg Reward = {current_avg_reward:.2f}, "
-                          f"Avg Path Length = {avg_length:.2f}")
+                        f"Avg Path Length = {avg_length:.2f}")
 
                 if current_avg_reward > best_avg_reward + self.PARAMS['EARLY_STOPPING_MIN_DELTA']:
                     best_avg_reward = current_avg_reward
