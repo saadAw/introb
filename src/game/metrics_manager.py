@@ -73,7 +73,9 @@ class MetricsManager:
             if time_taken > 0:
                 self.current_run.steps_per_second = path_length / time_taken
             if nodes_explored > 0:
-                self.current_run.exploration_efficiency = path_length / nodes_explored
+                # This represents "nodes explored per thousand path steps"  
+                efficiency = (path_length / nodes_explored) * 1000
+                self.current_run.exploration_efficiency = round(efficiency, 2)
 
     def end_run(self, success: bool, score: float):
         """End current run and save metrics"""

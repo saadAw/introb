@@ -309,26 +309,32 @@ class GameRunner:
         except Exception as e:
             print(f"Error during cleanup: {e}")
 
-    def setup_algorithms(self) -> Dict[AlgorithmType, Callable]:
-        """Initialize all pathfinding algorithms"""
-        try:
-            from src.algorithms.pathfinding.dijkstra import DijkstraPathfinder
-            from src.algorithms.pathfinding.astar import AStarPathfinder
-            from src.algorithms.pathfinding.greedy_best_first import GreedyBestFirstPathfinder
-            from src.algorithms.pathfinding.breadth_first import BFSPathfinder
-            from src.algorithms.reinforcement.q_learning import QLearningPathfinder
-            from src.algorithms.reinforcement.sarsa import SARSAPathfinder
+    def setup_algorithms(self) -> Dict[AlgorithmType, Callable]:  
+        """Initialize all pathfinding algorithms"""  
+        try:  
+            from src.algorithms.pathfinding.dijkstra import DijkstraPathfinder  
+            from src.algorithms.pathfinding.astar import AStarPathfinder  
+            from src.algorithms.pathfinding.greedy_best_first import GreedyBestFirstPathfinder  
+            from src.algorithms.pathfinding.breadth_first import BFSPathfinder  
+            from src.algorithms.reinforcement.q_learning import QLearningPathfinder  
+            from src.algorithms.reinforcement.sarsa import SARSAPathfinder  
 
-            return {
-                AlgorithmType.DIJKSTRA: lambda: DijkstraPathfinder(self.game_map),
-                AlgorithmType.ASTAR: lambda: AStarPathfinder(self.game_map),
-                AlgorithmType.GBFS: lambda: GreedyBestFirstPathfinder(self.game_map),
-                AlgorithmType.BFS: lambda: BFSPathfinder(self.game_map),
-                AlgorithmType.QL: lambda: QLearningPathfinder(self.game_map),
-                AlgorithmType.SARSA: lambda: SARSAPathfinder(self.game_map),
-            }
-        except Exception as e:
-            print(f"Error setting up algorithms: {e}")
+            # Create a function that initializes pathfinder with game logic  
+            def create_pathfinder(pathfinder_class):  
+                pathfinder = pathfinder_class(self.game_map)  
+                pathfinder.set_game_logic(self.game_logic)  # Set game logic  
+                return pathfinder  
+
+            return {  
+                AlgorithmType.DIJKSTRA: lambda: create_pathfinder(DijkstraPathfinder),  
+                AlgorithmType.ASTAR: lambda: create_pathfinder(AStarPathfinder),  
+                AlgorithmType.GBFS: lambda: create_pathfinder(GreedyBestFirstPathfinder),  
+                AlgorithmType.BFS: lambda: create_pathfinder(BFSPathfinder),  
+                AlgorithmType.QL: lambda: create_pathfinder(QLearningPathfinder),  
+                AlgorithmType.SARSA: lambda: create_pathfinder(SARSAPathfinder),  
+            }  
+        except Exception as e:  
+            print(f"Error setting up algorithms: {e}")  
             raise
     
     def _init_pathfinder(self, pathfinder_class):  

@@ -156,6 +156,7 @@ class GameLogic:
         self.optimal_path_length = optimal_path_length
         
         self.metrics_manager = MetricsManager()
+        self.total_nodes_explored = 0  # Add this line  
         self.nodes_explored = 0
         self.start_time = None
         
@@ -171,18 +172,18 @@ class GameLogic:
         print("=" * 50)
         self.metrics_manager.print_summary()
         
-    def set_algorithm(self, algorithm: AlgorithmType):
-        """Set current algorithm"""
-        self.algorithm_tracker.set_algorithm(algorithm)
-        self.nodes_explored = 0  # Reset nodes counter
-        self.start_time = datetime.now()  # Start timing
+    def set_algorithm(self, algorithm: AlgorithmType):  
+        """Set current algorithm"""  
+        self.algorithm_tracker.set_algorithm(algorithm)  
+        self.nodes_explored = 0  
+        self.start_time = datetime.now()  
+        # Start metrics collection  
         self.metrics_manager.start_run(algorithm, self.current_maze)
 
-    def increment_nodes_explored(self):
-        """Increment nodes explored counter"""
-        self.nodes_explored += 1
-        if self.metrics_manager.current_run:
-            self.metrics_manager.current_run.nodes_explored = self.nodes_explored
+    def increment_nodes_explored(self):  
+        self.nodes_explored += 1  
+        self.total_nodes_explored += 1
+        
 
     def set_maze_type(self, maze_type: TestScenario):
         """Set current maze type"""
@@ -192,6 +193,7 @@ class GameLogic:
     def update(self):  
         if self.state_manager.state == GameState.PLAYING:  
             self.time_manager.update()  
+            self._update_metrics()
 
             # Check for time out  
             if self.time_manager.is_time_expired():  
@@ -203,29 +205,38 @@ class GameLogic:
                 )
                 self.metrics_manager.save_metrics()
 
-    def check_win_condition(self, robot_pos: Tuple[int, int], goal_pos: Tuple[int, int]):
-        """Check if robot has reached the goal"""
-        if robot_pos == goal_pos:
-            self.state_manager.state = GameState.WIN
-            final_score = self.score_manager.calculate_score(self.time_manager.time_remaining)
-            self.score_manager.score = final_score
-            
-            # Update metrics with all available data
-            self.metrics_manager.update_run(
-                nodes_explored=self.nodes_explored,
-                path_length=self.score_manager.moves_made,
-                time_taken=(datetime.now() - self.start_time).total_seconds() if self.start_time else 0,
-                remaining_time=self.time_manager.remaining_seconds,
-                total_time=self.time_manager.total_time,
-                memory_used=0  # TODO: Implement memory tracking if needed
+    def _update_metrics(self):  # Add this method  
+        """Update metrics during gameplay"""  
+        if self.metrics_manager.current_run:  
+            self.metrics_manager.update_run(  
+                nodes_explored=self.total_nodes_explored,  
+                path_length=self.score_manager.moves_made,  
+                time_taken=(datetime.now() - self.start_time).total_seconds(),  
+                remaining_time=self.time_manager.remaining_seconds,  
+                total_time=self.time_manager.total_time  
             )
-            
-            self.metrics_manager.end_run(True, final_score)
-            self.metrics_manager.print_summary()
-            self.metrics_manager.save_metrics()
+
+    def check_win_condition(self, robot_pos: Tuple[int, int], goal_pos: Tuple[int, int]):  
+        """Check if robot has reached the goal"""  
+        if robot_pos == goal_pos:  
+            self.state_manager.state = GameState.WIN  
+            final_score = self.score_manager.calculate_score(self.time_manager.time_remaining)  
+            self.score_manager.score = final_score  
+
+            time_taken = (datetime.now() - self.start_time).total_seconds() if self.start_time else 0  
+
+            # Use total_nodes_explored for consistency  
+            self.metrics_manager.update_run(  
+                nodes_explored=self.total_nodes_explored,  # Changed from nodes_explored  
+                path_length=self.score_manager.moves_made,  
+                time_taken=time_taken,  
+                remaining_time=self.time_manager.remaining_seconds,  
+                total_time=self.time_manager.total_time  
+            )  
+
+            self.metrics_manager.end_run(True, final_score)  
 
         return self.state_manager.state
-
 
     def calculate_reward(self, old_pos: Tuple[int, int], new_pos: Tuple[int, int], goal_pos: Tuple[int, int]) -> float:
         """Calculate reward for an action"""

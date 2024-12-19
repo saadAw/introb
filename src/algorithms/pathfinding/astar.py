@@ -10,9 +10,10 @@ class AStarPathfinder:
         self.height = game_map.height
         self.game_logic = None
 
-    def set_game_logic(self, game_logic):  
-        """Set reference to game logic for metrics tracking"""  
+    def set_game_logic(self, game_logic):
+        """Set reference to game logic for metrics tracking"""
         self.game_logic = game_logic
+        print(f"Game logic set: {self.game_logic is not None}")  # Debug print
         
     def get_neighbors(self, pos: Tuple[int, int]) -> List[Tuple[int, int]]:
         """Get valid neighboring positions"""
@@ -40,24 +41,17 @@ class AStarPathfinder:
     def find_path(self, start: Tuple[int, int], goal: Tuple[int, int]) -> Tuple[List[Tuple[int, int]], float]:  
         """  
         Find shortest path using A* algorithm  
-        Returns:  
-            Tuple containing:  
-            - List of positions representing the path from start to goal  
-            - Total cost of the path (float('inf') if no path exists)  
         """  
+        
         # Validate start and goal positions  
         if not (self.game_map.is_valid_move(*start) and self.game_map.is_valid_move(*goal)):  
             return [], float('inf')  
 
         # Initialize data structures  
-        queue: List[Tuple[float, Tuple[int, int]]] = [(self.calculate_heuristic(start, goal), start)]  
-        came_from: Dict[Tuple[int, int], Optional[Tuple[int, int]]] = {start: None}  
-        g_costs: Dict[Tuple[int, int], float] = {start: 0}  
-        visited: Set[Tuple[int, int]] = set()  
-
-        # Increment node count for start position  
-        if self.game_logic:  
-            self.game_logic.increment_nodes_explored()  
+        queue = [(self.calculate_heuristic(start, goal), start)]  
+        came_from = {start: None}  
+        g_costs = {start: 0}  
+        visited = set()  
 
         while queue:  
             _, current_pos = heapq.heappop(queue)  
@@ -70,11 +64,14 @@ class AStarPathfinder:
 
             visited.add(current_pos)  
 
-            # Increment node count for each newly visited position  
+            # Increment nodes explored  
             if self.game_logic:  
                 self.game_logic.increment_nodes_explored()  
 
             for next_pos in self.get_neighbors(current_pos):  
+                if next_pos in visited:  
+                    continue  
+
                 new_g_cost = g_costs[current_pos] + 1  
 
                 if next_pos not in g_costs or new_g_cost < g_costs[next_pos]:  
@@ -83,18 +80,15 @@ class AStarPathfinder:
                     came_from[next_pos] = current_pos  
                     heapq.heappush(queue, (f_cost, next_pos))  
 
-                    # Increment node count for each newly discovered position  
-                    if self.game_logic and next_pos not in visited:  
-                        self.game_logic.increment_nodes_explored()  
-
+        # Reconstruct path  
         if goal not in came_from:  
             return [], float('inf')  
 
-        path: List[Tuple[int, int]] = []  
-        current_pos = goal  
-        while current_pos is not None:  
-            path.append(current_pos)  
-            current_pos = came_from[current_pos]  
+        path = []  
+        current = goal  
+        while current is not None:  
+            path.append(current)  
+            current = came_from[current]  
         path.reverse()  
 
         return path, g_costs[goal]
