@@ -25,10 +25,14 @@ class EventHandler:
         self.running = True
         self.current_algorithm = AlgorithmType.MANUAL
         self.current_pathfinder = None
-        self.current_maze = TestScenario.DIAGONAL
+        self.last_maze_key = None
+        self.last_maze_press_time = 0
+        self.key_cooldown = 200
 
     def handle_events(self) -> bool:
         """Process game events"""
+        current_time = pygame.time.get_ticks()
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT or (
                 event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE
@@ -36,38 +40,44 @@ class EventHandler:
                 return False
 
             if event.type == pygame.KEYDOWN:
-                # Add maze selection handling
                 if self.game_state.state_manager.state == GameState.WAITING:
-                    if event.key == pygame.K_F1:
-                        self._switch_maze(TestScenario.DIAGONAL)
-                    elif event.key == pygame.K_F2:
-                        self._switch_maze(TestScenario.SNAKE)
-                    elif event.key == pygame.K_F3:
-                        self._switch_maze(TestScenario.OPEN)
-                    elif event.key == pygame.K_F4:
-                        self._switch_maze(TestScenario.BOTTLENECK)
+                    maze_keys = {
+                        pygame.K_F1: TestScenario.DIAGONAL,
+                        pygame.K_F2: TestScenario.SNAKE,
+                        pygame.K_F3: TestScenario.OPEN,
+                        pygame.K_F4: TestScenario.BOTTLENECK
+                    }
+                    
+                    if event.key in maze_keys:
+                        if (event.key == self.last_maze_key and 
+                            current_time - self.last_maze_press_time < self.key_cooldown):
+                            return True
+                            
+                        scenario = maze_keys[event.key]
+                        next_variation = event.key == self.last_maze_key
+                        self._switch_maze(scenario, next_variation)
+                        
+                        self.last_maze_key = event.key
+                        self.last_maze_press_time = current_time
 
-                # Always allow reset
                 if event.key == pygame.K_r:
                     return self._handle_reset()
 
-                # Algorithm selection can happen in WAITING state
                 if self.game_state.state_manager.state == GameState.WAITING:
                     if event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_6, pygame.K_7]:
                         self._handle_algorithm_selection(event.key)
 
         return True
 
-    def _switch_maze(self, scenario: TestScenario):
-        """Handle maze switching"""
-        if self.map.change_maze(scenario):
+    def _switch_maze(self, scenario: TestScenario, next_variation: bool = False):
+        """Handle maze switching with variation support"""
+        if self.map.change_maze(scenario, next_variation):
             self.current_maze = scenario
             self.game_state.set_maze_type(scenario)
             self.robot.x = self.map.SPAWN_POS[0]
             self.robot.y = self.map.SPAWN_POS[1]
             for algo_type in AlgorithmType:
                 self.map.clear_algorithm_path(algo_type)
-
 
     def handle_input(self):
         """Handle input based on current algorithm"""
@@ -79,19 +89,15 @@ class EventHandler:
 
     def _handle_reset(self) -> bool:  
         """Handle game reset"""  
-        # Reset map  
         self.map.load_map()  
 
-        # Reset robot position  
         self.robot.x = self.map.SPAWN_POS[0]  
         self.robot.y = self.map.SPAWN_POS[1]  
         self.map.place_robot(self.robot.x, self.robot.y)  
 
-        # Reset game state  
         self.game_state.reset()  
         self.game_state.state = GameState.WAITING  
 
-        # Reset algorithm  
         self.current_algorithm = AlgorithmType.MANUAL  
         self.current_pathfinder = None  
 
@@ -112,19 +118,15 @@ class EventHandler:
         if key in algorithm_map:
             algo_type, pathfinder_creator = algorithm_map[key]
 
-            # Clear previous algorithm path
             if self.current_algorithm:
                 self.map.clear_algorithm_path(self.current_algorithm)
 
-            # Set new algorithm
             self.current_algorithm = algo_type
             self.current_pathfinder = pathfinder_creator() if pathfinder_creator else None
 
-            # Train reinforcement learning agents if needed
             if self.current_algorithm in [AlgorithmType.QL, AlgorithmType.SARSA] and self.current_pathfinder:
                 self._train_reinforcement_agent()
 
-            # Update game state
             if self.current_algorithm:  
                 self.game_state.set_algorithm(self.current_algorithm)  
                 self.game_state.state = GameState.PLAYING
@@ -190,30 +192,24 @@ class GameRenderer:
 
     def draw(self, game_logic, current_algorithm):
         """Render game elements"""
-        # Create main surface with calculated dimensions
         window_width = UI_PANEL_WIDTH + self.map.screen_width
         window_height = self.map.screen_height
         main_surface = pygame.Surface((window_width, window_height))
         main_surface.fill(COLORS['WHITE'])
 
-        # Draw map on the right side of the panel
         self.map.draw_map(main_surface, offset_x=UI_PANEL_WIDTH)
         self.robot.display(main_surface, offset_x=UI_PANEL_WIDTH)
 
-        # Draw UI on the left panel
         self.ui_manager.draw_game_ui(
             main_surface,
             game_logic,
             current_algorithm
         )
 
-        # Update display
         self.screen.blit(main_surface, (0, 0))
         pygame.display.flip()
 
-        # Draw game state message  
         if game_logic.state_manager.state == GameState.WAITING:  
-            # Modify this to use the new state management  
             pass
 
 class GameRunner:
@@ -225,9 +221,8 @@ class GameRunner:
         self.setup_initial_components()
         self.setup_remaining_components()
 
-        # Create component managers
         self.event_handler = EventHandler(
-            self.game_logic,  # This is now properly initialized
+            self.game_logic,
             self.game_map, 
             self.robot, 
             self.pathfinders
@@ -247,17 +242,14 @@ class GameRunner:
     def setup_initial_components(self):
         """Initialize core components needed for window setup"""
         try:
-            # Create map first to get dimensions
-            self.game_map = Map(0, 0)  # Dimensions will be calculated in Map class
+            self.game_map = Map(0, 0)
 
-            # Set up the display with the map's calculated dimensions
             window_width = UI_PANEL_WIDTH + self.game_map.screen_width
             window_height = self.game_map.screen_height
 
             print(f"Window size: {window_width}x{window_height}")
             print(f"Cell size: {self.game_map.cell_size}")
 
-            # Set up the display
             self.screen = pygame.display.set_mode((window_width, window_height))
             pygame.display.set_caption("Robot Navigation Game")
 
@@ -288,11 +280,9 @@ class GameRunner:
                 speed=1
             )
 
-            # Connect game logic to robot
             self.robot.set_game_logic(self.game_logic)
             self.game_map.place_robot(self.robot.x, self.robot.y)
 
-            # Initialize algorithm settings
             self.pathfinders = self.setup_algorithms()
 
         except Exception as e:
@@ -304,7 +294,7 @@ class GameRunner:
         """Clean up pygame resources"""  
         try:  
             if hasattr(self, 'game_logic'):  
-                self.game_logic.cleanup()  # This will handle memory tracking cleanup  
+                self.game_logic.cleanup()
             pygame.quit()  
         except Exception as e:  
             print(f"Error during cleanup: {e}")
@@ -319,7 +309,6 @@ class GameRunner:
             from src.algorithms.reinforcement.q_learning import QLearningPathfinder  
             from src.algorithms.reinforcement.sarsa import SARSAPathfinder  
 
-            # Create a function that initializes pathfinder with game logic  
             def create_pathfinder(pathfinder_class):  
                 pathfinder = pathfinder_class(self.game_map)  
                 pathfinder.set_game_logic(self.game_logic)  # Set game logic  
@@ -347,22 +336,17 @@ class GameRunner:
         """Main game loop"""  
         try:  
             while self.event_handler.running:  
-                # Handle events and check if game should continue  
                 self.event_handler.running = self.event_handler.handle_events()  
 
-                # Handle input based on current algorithm  
                 self.event_handler.handle_input()  
 
-                # Update game state (GameLogic handles memory tracking internally)  
                 self.state_updater.update()  
 
-                # Render game  
                 self.renderer.draw(  
                     self.game_logic,   
                     self.event_handler.current_algorithm  
                 )  
 
-                # Control frame rate  
                 self.clock.tick(FPS)  
         except Exception as e:  
             print(f"Error in main game loop: {e}")  
