@@ -11,9 +11,6 @@ class GreedyBestFirstPathfinder:
     def __init__(self, game_map):
         """
         Initialize the pathfinder with a game map.
-
-        Args:
-            game_map: The game map object containing the grid and dimensions
         """
         self.game_map = game_map
         self.width = game_map.width
@@ -22,10 +19,8 @@ class GreedyBestFirstPathfinder:
 
     def set_game_logic(self, game_logic):
         """
-        Set reference to game logic for metrics tracking.
+        Set reference to game logic
 
-        Args:
-            game_logic: GameLogic instance for tracking metrics
         """
         self.game_logic = game_logic
 
@@ -33,11 +28,6 @@ class GreedyBestFirstPathfinder:
         """
         Get valid neighboring positions.
 
-        Args:
-            pos: Current position tuple (x, y)
-
-        Returns:
-            List of valid neighboring position tuples
         """
         x, y = pos
         possible_neighbors = [
@@ -52,12 +42,6 @@ class GreedyBestFirstPathfinder:
         """
         Calculate Manhattan distance to goal.
 
-        Args:
-            current_pos: Current position tuple (x, y)
-            goal_pos: Goal position tuple (x, y)
-
-        Returns:
-            Manhattan distance between current position and goal
         """
         x1, y1 = current_pos
         x2, y2 = goal_pos
@@ -68,14 +52,6 @@ class GreedyBestFirstPathfinder:
         Find path using Greedy Best-First Search.
         Only considers distance to goal, ignoring path cost.
 
-        Args:
-            start: Starting position tuple (x, y)
-            goal: Goal position tuple (x, y)
-
-        Returns:
-            Tuple containing:
-            - List of positions forming the path
-            - Total cost of the path
         """
         if not (self.game_map.is_valid_move(*start) and self.game_map.is_valid_move(*goal)):
             return [], float('inf')
@@ -136,12 +112,6 @@ class GreedyBestFirstPathfinder:
         """
         Get the next move direction based on the found path.
 
-        Args:
-            current_pos: Current position tuple (x, y)
-            goal_pos: Goal position tuple (x, y)
-
-        Returns:
-            String indicating the next move direction ('up', 'down', 'left', 'right', or 'idle')
         """
         path, _ = self.find_path(current_pos, goal_pos)
 
