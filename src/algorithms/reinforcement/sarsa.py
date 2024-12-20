@@ -204,7 +204,28 @@ class SARSAPathfinder:
 
     def train(self, start: Tuple[int, int], goal: Tuple[int, int], 
           episodes: int = None, max_steps: int = None) -> None:
-        """SARSA training process"""
+        """SARSA training process with data collection"""
+        import os
+        import json
+        import time
+        from datetime import datetime
+
+        # Create directory for training data
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        data_dir = f"training_data/sarsa_training_{timestamp}"
+        os.makedirs(data_dir, exist_ok=True)
+
+        # Training metrics to track
+        training_data = {
+            "episode_rewards": [],
+            "episode_lengths": [],
+            "exploration_rates": [],
+            "nodes_explored_per_episode": [],
+            "completion_times": [],
+            "training_summary": {}
+        }
+
+        training_start_time = time.time()
         max_steps = max_steps or self.PARAMS['MAX_STEPS_PER_EPISODE']
         self.current_goal = goal
         self.state_visits = {}  # Reset state visits at start of training
@@ -213,14 +234,17 @@ class SARSAPathfinder:
         patience_counter = 0
         window_size = self.PARAMS['EARLY_STOPPING_WINDOW']
 
-        print("Starting SARSA training with early stopping...")
+        print("Starting SARSA training with data collection...")
 
         episode = 0
         while episode < self.PARAMS['MAX_EPISODES']:
+            episode_start_time = time.time()
             current_state = start
             self.previous_states = []
             episode_reward = 0
             path_length = 0
+            nodes_explored_start = len(self.state_visits)
+            goal_reached = False
 
             # Count start state only if not visited before
             if self.game_logic and current_state not in self.state_visits:
@@ -252,26 +276,42 @@ class SARSAPathfinder:
                 self.q_table[state_key][current_action] = current_q + \
                     self.learning_rate_start * (reward + self.discount_factor * next_q - current_q)
 
-                self.previous_states.append(current_state)
-                if len(self.previous_states) > self.max_previous_states:
+                if len(self.previous_states) >= self.max_previous_states:
                     self.previous_states.pop(0)
+                self.previous_states.append(current_state)
 
                 episode_reward += reward
                 path_length += 1
 
                 if next_state == goal:
+                    goal_reached = True
                     break
 
                 current_state = next_state
                 current_action = next_action
 
-                # Decay epsilon
-                self.epsilon = max(self.PARAMS['EPSILON_MIN'],
-                                self.epsilon * self.PARAMS['EPSILON_DECAY'])
-
-            # Record episode results
+            # Store episode data
             self.episode_rewards.append(episode_reward)
             self.path_lengths.append(path_length)
+
+            # Collect episode data for saving
+            episode_time = time.time() - episode_start_time
+            nodes_explored_episode = len(self.state_visits) - nodes_explored_start
+
+            training_data["episode_rewards"].append(float(episode_reward))
+            training_data["episode_lengths"].append(path_length)
+            training_data["exploration_rates"].append(float(self.epsilon))
+            training_data["nodes_explored_per_episode"].append(nodes_explored_episode)
+            training_data["completion_times"].append(float(episode_time))
+
+            # Decay epsilon
+            self.epsilon = max(self.PARAMS['EPSILON_MIN'],
+                            self.epsilon * self.PARAMS['EPSILON_DECAY'])
+
+            # Save intermediate data every 100 episodes
+            if (episode + 1) % 100 == 0:
+                with open(f"{data_dir}/training_progress_{episode+1}.json", 'w') as f:
+                    json.dump(training_data, f, indent=4)
 
             # Early stopping check
             if episode >= self.PARAMS['MIN_EPISODES']:
@@ -280,7 +320,10 @@ class SARSAPathfinder:
                 if (episode + 1) % self.PARAMS['PROGRESS_PRINT_INTERVAL'] == 0:
                     avg_length = np.mean(self.path_lengths[-window_size:])
                     print(f"Episode {episode + 1}: Avg Reward = {current_avg_reward:.2f}, "
-                        f"Avg Path Length = {avg_length:.2f}")
+                        f"Avg Path Length = {avg_length:.2f}, "
+                        f"Best Avg Reward = {best_avg_reward:.2f}, "
+                        f"Patience = {patience_counter}, "
+                        f"Goal Reached = {goal_reached}")
 
                 if current_avg_reward > best_avg_reward + self.PARAMS['EARLY_STOPPING_MIN_DELTA']:
                     best_avg_reward = current_avg_reward
@@ -294,6 +337,28 @@ class SARSAPathfinder:
 
             episode += 1
 
+        # Calculate and save training summary
+        total_training_time = time.time() - training_start_time
+        training_data["training_summary"] = {
+            "total_episodes": episode + 1,
+            "total_training_time": total_training_time,
+            "final_epsilon": float(self.epsilon),
+            "best_average_reward": float(best_avg_reward),
+            "total_unique_states_visited": len(self.state_visits),
+            "average_episode_length": float(np.mean(training_data["episode_lengths"])),
+            "average_episode_reward": float(np.mean(training_data["episode_rewards"])),
+            "average_nodes_per_episode": float(np.mean(training_data["nodes_explored_per_episode"])),
+            "training_parameters": self.PARAMS
+        }
+
+        # Save final training data
+        with open(f"{data_dir}/final_training_data.json", 'w') as f:
+            json.dump(training_data, f, indent=4)
+
+        print(f"\nTraining completed. Data saved in {data_dir}")
+        print(f"Total training time: {total_training_time:.2f} seconds")
+        print(f"Final average reward: {np.mean(self.episode_rewards[-window_size:]):.2f}")
+        print(f"Final average path length: {np.mean(self.path_lengths[-window_size:]):.2f}")
     def get_next_move(self, current_pos: Tuple[int, int], goal_pos: Tuple[int, int]) -> str:
         """Get next move with safety considerations"""
         self.current_goal = goal_pos

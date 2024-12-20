@@ -1,3 +1,7 @@
+import os
+import json
+import time
+from datetime import datetime
 from typing import Dict, List, Tuple
 import numpy as np
 import random
@@ -12,7 +16,7 @@ class QLearningPathfinder:
         'LEARNING_RATE_MIN': 0.01,       # Minimum learning rate
         'DISCOUNT_FACTOR': 0.95,         # Future reward discount
         'EPSILON_START': 1.0,            # Initial exploration rate
-        'EPSILON_MIN': 0.001,             # Minimum exploration rate
+        'EPSILON_MIN': 0.001,            # Minimum exploration rate
         'EPSILON_DECAY': 0.995,          # Exploration decay rate
 
         # Memory and tracking
@@ -21,20 +25,20 @@ class QLearningPathfinder:
         'REPLAY_BATCH_SIZE': 32,          # Batch size for experience replay
 
         # Reward structure
-        'REWARD_GOAL': 50000.0,            # Reward for reaching goal
-        'REWARD_WALL': -10.0,             # Penalty for hitting wall
-        'REWARD_LOOP': -10.0,             # Penalty for revisiting states
-        'REWARD_CLOSER': 0.0,            # Reward for moving closer to goal
+        'REWARD_GOAL': 100.0,            # Reward for reaching goal
+        'REWARD_WALL': -10.0,            # Penalty for hitting wall
+        'REWARD_LOOP': -10.0,            # Penalty for revisiting states
+        'REWARD_CLOSER': 0.5,            # Reward for moving closer to goal
         'REWARD_FARTHER': -0.5,          # Penalty for moving away from goal
-        'EXPLORATION_BONUS_FACTOR': 1,  # Factor for exploration bonus
+        'EXPLORATION_BONUS_FACTOR': 1,    # Factor for exploration bonus
 
         # Training settings
         'DEFAULT_EPISODES': 1000,         # Default number of training episodes
-        'MAX_STEPS_PER_EPISODE': 5000,    # Maximum steps per episode
-        'PROGRESS_PRINT_INTERVAL': 100,    # Episodes between progress updates
+        'MAX_STEPS_PER_EPISODE': 1500,    # Maximum steps per episode
+        'PROGRESS_PRINT_INTERVAL': 100,   # Episodes between progress updates
 
         # Early Stopping
-        'EARLY_STOPPING_PATIENCE': 100,     # Number of epochs to wait for improvement  
+        'EARLY_STOPPING_PATIENCE': 100,    # Number of epochs to wait for improvement  
         'EARLY_STOPPING_MIN_DELTA': 0.1,   # Minimum change to qualify as an improvement  
         'EARLY_STOPPING_WINDOW': 100,      # Window size for calculating average reward  
         'MIN_EPISODES': 100,              # Minimum number of episodes before early stopping  
@@ -73,16 +77,17 @@ class QLearningPathfinder:
         # Performance tracking
         self.episode_rewards = []
         self.path_lengths = []
-
+        
+        # Game logic reference
         self.game_logic = None
 
-    def set_game_logic(self, game_logic):  
-        """  
-        Set reference to game logic for metrics tracking.  
-
-        Args:  
-            game_logic: GameLogic instance for tracking metrics  
-        """  
+    def set_game_logic(self, game_logic):
+        """
+        Set reference to game logic for metrics tracking.
+        
+        Args:
+            game_logic: GameLogic instance for tracking metrics
+        """
         self.game_logic = game_logic
 
     def get_state_features(self, pos: Tuple[int, int], goal: Tuple[int, int]) -> str:
@@ -127,26 +132,26 @@ class QLearningPathfinder:
 
         return valid_actions
 
-    def get_next_state(self, state: Tuple[int, int], action: str) -> Tuple[int, int]:  
-        """Get next state given current state and action"""  
-        dx, dy = self.action_deltas[action]  
-        next_x = state[0] + dx  
-        next_y = state[1] + dy  
+    def get_next_state(self, state: Tuple[int, int], action: str) -> Tuple[int, int]:
+        """Get next state given current state and action"""
+        dx, dy = self.action_deltas[action]
+        next_x = state[0] + dx
+        next_y = state[1] + dy
         next_state = (next_x, next_y)
 
-        # Only count if it's a valid, new state
-        if (0 <= next_x < self.width and   
-            0 <= next_y < self.height and   
+        # Track node exploration
+        if (0 <= next_x < self.width and 
+            0 <= next_y < self.height and 
             self.game_map.grid[next_y][next_x] != MapSymbols.OBSTACLE and
             self.game_logic and 
-            next_state not in self.state_visits):  
+            next_state not in self.state_visits):
             self.game_logic.increment_nodes_explored()
             self.state_visits[next_state] = 1
 
-        if (0 <= next_x < self.width and   
-            0 <= next_y < self.height and   
-            self.game_map.grid[next_y][next_x] != MapSymbols.OBSTACLE):  
-            return (next_x, next_y)  
+        if (0 <= next_x < self.width and 
+            0 <= next_y < self.height and 
+            self.game_map.grid[next_y][next_x] != MapSymbols.OBSTACLE):
+            return next_state
         return state
 
     def get_reward(self, current_state: Tuple[int, int], 
@@ -213,100 +218,154 @@ class QLearningPathfinder:
             reward + self.discount_factor * next_q - current_q
         )
 
-    def train(self, start: Tuple[int, int], goal: Tuple[int, int],   
-          episodes: int = None, max_steps: int = None) -> None:  
-        """Enhanced training process with early stopping"""  
-        max_steps = max_steps or self.PARAMS['MAX_STEPS_PER_EPISODE']  
-        self.current_goal = goal  
+    def train(self, start: Tuple[int, int], goal: Tuple[int, int], 
+            episodes: int = None, max_steps: int = None) -> None:
+        """Enhanced training process with data collection"""
+        import os
+        import json
+        import time
+        from datetime import datetime
 
-        # Early stopping variables  
-        best_avg_reward = float('-inf')  
-        patience_counter = 0  
-        min_delta = self.PARAMS['EARLY_STOPPING_MIN_DELTA']  
-        window_size = self.PARAMS['EARLY_STOPPING_WINDOW']  
+        # Create directory for training data
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        data_dir = f"training_data/ql_training_{timestamp}"
+        os.makedirs(data_dir, exist_ok=True)
 
-        print("Starting training with early stopping...")  
+        # Training metrics to track
+        training_data = {
+            "episode_rewards": [],
+            "episode_lengths": [],
+            "exploration_rates": [],
+            "nodes_explored_per_episode": [],
+            "completion_times": [],
+            "training_summary": {}
+        }
 
-        episode = 0  
-        while episode < self.PARAMS['MAX_EPISODES']:  
-            current_state = start  
-            self.previous_states = []  
-            episode_reward = 0  
-            path_length = 0  
+        training_start_time = time.time()
+        max_steps = max_steps or self.PARAMS['MAX_STEPS_PER_EPISODE']
+        self.current_goal = goal
 
-            # Episode training loop  
-            for step in range(max_steps):  
-                valid_actions = self.get_valid_actions(current_state)  
-                action = self.choose_action(current_state, valid_actions)  
-                next_state = self.get_next_state(current_state, action)  
+        # Early stopping variables
+        best_avg_reward = float('-inf')
+        patience_counter = 0
+        min_delta = self.PARAMS['EARLY_STOPPING_MIN_DELTA']
+        window_size = self.PARAMS['EARLY_STOPPING_WINDOW']
 
-                reward = self.get_reward(current_state, next_state, goal)  
-                self.update_q_value(current_state, action, reward, next_state)  
+        print("Starting training with data collection...")
 
-                self.experience_buffer.append(  
-                    (current_state, action, reward, next_state)  
-                )  
+        episode = 0
+        while episode < self.PARAMS['MAX_EPISODES']:
+            episode_start_time = time.time()
+            current_state = start
+            self.previous_states = []
+            episode_reward = 0
+            path_length = 0
+            nodes_explored_start = len(self.state_visits)
+            goal_reached = False
 
-                self.previous_states.append(current_state)  
-                if len(self.previous_states) > self.max_previous_states:  
-                    self.previous_states.pop(0)  
+            # Episode training loop
+            for step in range(max_steps):
+                valid_actions = self.get_valid_actions(current_state)
+                action = self.choose_action(current_state, valid_actions)
+                next_state = self.get_next_state(current_state, action)
 
-                state_key = self.get_state_features(current_state, goal)  
+                reward = self.get_reward(current_state, next_state, goal)
+                self.update_q_value(current_state, action, reward, next_state)
 
-                episode_reward += reward  
-                path_length += 1  
-                current_state = next_state  
+                self.experience_buffer.append(
+                    (current_state, action, reward, next_state)
+                )
 
-                if current_state == goal:  
-                    break  
+                if len(self.previous_states) >= self.max_previous_states:
+                    self.previous_states.pop(0)
+                self.previous_states.append(current_state)
 
-            self.episode_rewards.append(episode_reward)  
-            self.path_lengths.append(path_length)  
+                state_key = self.get_state_features(current_state, goal)
+                self.state_visits[state_key] += 1
 
-            # Decay epsilon  
-            self.epsilon = max(self.PARAMS['EPSILON_MIN'],   
-                            self.epsilon * self.PARAMS['EPSILON_DECAY'])  
+                episode_reward += reward
+                path_length += 1
+                current_state = next_state
 
-            # Experience replay  
-            if len(self.experience_buffer) >= self.PARAMS['REPLAY_BATCH_SIZE']:  
-                batch = random.sample(self.experience_buffer,   
-                                    self.PARAMS['REPLAY_BATCH_SIZE'])  
-                for exp_state, exp_action, exp_reward, exp_next_state in batch:  
-                    self.update_q_value(exp_state, exp_action, exp_reward, exp_next_state)  
+                if current_state == goal:
+                    goal_reached = True
+                    break
 
-            # Early stopping check  
-            if episode >= self.PARAMS['MIN_EPISODES']:  
-                current_avg_reward = np.mean(self.episode_rewards[-window_size:])  
+            # Store episode data
+            self.episode_rewards.append(episode_reward)
+            self.path_lengths.append(path_length)
 
-                # Print progress  
-                if (episode + 1) % self.PARAMS['PROGRESS_PRINT_INTERVAL'] == 0:  
-                    avg_length = np.mean(self.path_lengths[-window_size:])  
-                    print(f"Episode {episode + 1}: Avg Reward = {current_avg_reward:.2f}, "  
-                        f"Avg Path Length = {avg_length:.2f}, "  
-                        f"Best Avg Reward = {best_avg_reward:.2f}, "  
-                        f"Patience = {patience_counter}")  
+            # Collect episode data for saving
+            episode_time = time.time() - episode_start_time
+            nodes_explored_episode = len(self.state_visits) - nodes_explored_start
 
-                # Check if there's an improvement  
-                if current_avg_reward > best_avg_reward + min_delta:  
-                    best_avg_reward = current_avg_reward  
-                    patience_counter = 0  
-                else:  
-                    patience_counter += 1  
+            training_data["episode_rewards"].append(float(episode_reward))
+            training_data["episode_lengths"].append(path_length)
+            training_data["exploration_rates"].append(float(self.epsilon))
+            training_data["nodes_explored_per_episode"].append(nodes_explored_episode)
+            training_data["completion_times"].append(float(episode_time))
 
-                # Check if we should stop  
-                if patience_counter >= self.PARAMS['EARLY_STOPPING_PATIENCE']:  
-                    print(f"\nEarly stopping triggered after {episode + 1} episodes")  
-                    print(f"Best average reward: {best_avg_reward:.2f}")  
-                    print(f"Final average reward: {current_avg_reward:.2f}")  
-                    print(f"Final average path length: {np.mean(self.path_lengths[-window_size:]):.2f}")  
-                    break  
+            # Decay epsilon
+            self.epsilon = max(self.PARAMS['EPSILON_MIN'],
+                            self.epsilon * self.PARAMS['EPSILON_DECAY'])
 
-            episode += 1  
+            # Experience replay
+            if len(self.experience_buffer) >= self.PARAMS['REPLAY_BATCH_SIZE']:
+                batch = random.sample(self.experience_buffer,
+                                    self.PARAMS['REPLAY_BATCH_SIZE'])
+                for exp_state, exp_action, exp_reward, exp_next_state in batch:
+                    self.update_q_value(exp_state, exp_action, exp_reward, exp_next_state)
 
-        if episode >= self.PARAMS['MAX_EPISODES']:  
-            print(f"\nReached maximum episodes ({self.PARAMS['MAX_EPISODES']})")  
-            print(f"Final average reward: {np.mean(self.episode_rewards[-window_size:]):.2f}")  
-            print(f"Final average path length: {np.mean(self.path_lengths[-window_size:]):.2f}")
+            # Save intermediate data every 100 episodes
+            if (episode + 1) % 100 == 0:
+                with open(f"{data_dir}/training_progress_{episode+1}.json", 'w') as f:
+                    json.dump(training_data, f, indent=4)
+
+            # Early stopping check
+            if episode >= self.PARAMS['MIN_EPISODES']:
+                current_avg_reward = np.mean(self.episode_rewards[-window_size:])
+
+                if (episode + 1) % self.PARAMS['PROGRESS_PRINT_INTERVAL'] == 0:
+                    avg_length = np.mean(self.path_lengths[-window_size:])
+                    print(f"Episode {episode + 1}: Avg Reward = {current_avg_reward:.2f}, "
+                        f"Avg Path Length = {avg_length:.2f}, "
+                        f"Best Avg Reward = {best_avg_reward:.2f}, "
+                        f"Patience = {patience_counter}, "
+                        f"Goal Reached = {goal_reached}")
+
+                if current_avg_reward > best_avg_reward + min_delta:
+                    best_avg_reward = current_avg_reward
+                    patience_counter = 0
+                else:
+                    patience_counter += 1
+
+                if patience_counter >= self.PARAMS['EARLY_STOPPING_PATIENCE']:
+                    break
+
+            episode += 1
+
+        # Calculate and save training summary
+        total_training_time = time.time() - training_start_time
+        training_data["training_summary"] = {
+            "total_episodes": episode + 1,
+            "total_training_time": total_training_time,
+            "final_epsilon": float(self.epsilon),
+            "best_average_reward": float(best_avg_reward),
+            "total_unique_states_visited": len(self.state_visits),
+            "average_episode_length": float(np.mean(training_data["episode_lengths"])),
+            "average_episode_reward": float(np.mean(training_data["episode_rewards"])),
+            "average_nodes_per_episode": float(np.mean(training_data["nodes_explored_per_episode"])),
+            "training_parameters": self.PARAMS
+        }
+
+        # Save final training data
+        with open(f"{data_dir}/final_training_data.json", 'w') as f:
+            json.dump(training_data, f, indent=4)
+
+        print(f"\nTraining completed. Data saved in {data_dir}")
+        print(f"Total training time: {total_training_time:.2f} seconds")
+        print(f"Final average reward: {np.mean(self.episode_rewards[-window_size:]):.2f}")
+        print(f"Final average path length: {np.mean(self.path_lengths[-window_size:]):.2f}")
 
     def get_next_move(self, current_pos: Tuple[int, int], goal_pos: Tuple[int, int]) -> str:
         """Get next move with enhanced decision making"""
@@ -325,6 +384,6 @@ class QLearningPathfinder:
             if len(set(self.previous_states[-3:])) == 1:  # Same position 3 times
                 sorted_actions = sorted(q_values.items(), key=lambda x: x[1], reverse=True)
                 if len(sorted_actions) > 1:
-                    return sorted_actions[1][0]
+                    return sorted_actions[1][0]  # Choose second-best action to break loop
 
         return max(q_values.items(), key=lambda x: x[1])[0]
